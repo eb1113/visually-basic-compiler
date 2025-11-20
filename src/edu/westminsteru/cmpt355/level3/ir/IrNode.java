@@ -4,7 +4,7 @@ import edu.westminsteru.cmpt355.level3.util.TreeNode;
 
 /** Base interface for all IR nodes */
 public sealed interface IrNode extends TreeNode<IrNode>
-    permits IrProgram, IrStatement, IrExpression {
+        permits IrExpression, IrParameter, IrProgram, IrStatement {
 
     /** Returns the child nodes of this IR node */
     @Override

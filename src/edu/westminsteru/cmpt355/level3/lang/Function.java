@@ -1,5 +1,7 @@
 package edu.westminsteru.cmpt355.level3.lang;
 
+import java.util.List;
+
 /**
  * Record representing a function in the language.
  * <br>
@@ -7,11 +9,20 @@ package edu.westminsteru.cmpt355.level3.lang;
  * record should contain just the needed information to access (call) the
  * function, but not the function's code.
  */
-public record Function(/* add necessary fields here */) {
+public record Function(
+    String name,
+    ReturnType returnType,
+    List<Type> parameterTypes
+) {
 
-    // Suggestion: fill in this method to return a descriptor for this function/
-    // method (e.g. "(I)I")
     public String getDescriptor() {
-        throw new RuntimeException("Not implemented");
+        StringBuilder sb = new StringBuilder();
+        sb.append('(');
+        for (Type paramType : parameterTypes) {
+            sb.append(paramType.getDescriptor());
+        }
+        sb.append(')');
+        sb.append(returnType.getDescriptor());
+        return sb.toString();
     }
 }

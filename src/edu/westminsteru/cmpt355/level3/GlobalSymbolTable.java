@@ -2,7 +2,9 @@ package edu.westminsteru.cmpt355.level3;
 
 import edu.westminsteru.cmpt355.level3.lang.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -11,8 +13,8 @@ import java.util.Optional;
  */
 public class GlobalSymbolTable implements SymbolTable {
 
-    // Suggestion: use a Map<String, GlobalVariable> and Map<String, Function> to
-    // store the symbols
+    private final Map<String, GlobalVariable> globalTable = new HashMap<String, GlobalVariable>();
+    private final Map<String,Function> functionTable = new HashMap<String, Function>();
 
     /**
      * Returns the (global) variable with the given name or an empty Optional if none is defined.
@@ -20,7 +22,12 @@ public class GlobalSymbolTable implements SymbolTable {
      */
     @Override
     public Optional<GlobalVariable> resolveVariable(String name) {
-        throw new RuntimeException("Not implemented");
+        if(globalTable.containsKey(name)){
+            return Optional.ofNullable(globalTable.get(name));
+        }
+        else{
+            return Optional.empty();
+        }
     }
 
     /**
@@ -29,7 +36,12 @@ public class GlobalSymbolTable implements SymbolTable {
      */
     @Override
     public Optional<Function> resolveFunction(String name) {
-        throw new RuntimeException("Not implemented");
+        if(functionTable.containsKey(name)){
+            return Optional.ofNullable(functionTable.get(name));
+        }
+        else{
+            return Optional.empty();
+        }
     }
 
     /**
@@ -39,7 +51,14 @@ public class GlobalSymbolTable implements SymbolTable {
      */
     @Override
     public GlobalVariable defineVariable(Type type, String name) throws DuplicateDefinitionException {
-        throw new RuntimeException("Not implemented");
+        if(globalTable.containsKey(name)){
+            throw new DuplicateDefinitionException("Variable " + name + " is already defined in this scope.");
+        }
+        else{
+            GlobalVariable newVar = new GlobalVariable(type, name);
+            globalTable.put(name, newVar);
+            return newVar;
+        }
     }
 
     /**
@@ -48,13 +67,21 @@ public class GlobalSymbolTable implements SymbolTable {
      * @throws DuplicateDefinitionException if there is a conflicting function with this name
      */
     public Function defineFunction(ReturnType returnType, String name, List<Type> parameterTypes) throws DuplicateDefinitionException{
-        throw new RuntimeException("Not implemented");
+        if(functionTable.containsKey(name)){
+            throw new DuplicateDefinitionException("Function " + name + " is already defined in this scope.");
+        }
+        else{
+            Function newFunc = new Function(name, returnType, parameterTypes);
+            functionTable.put(name, newFunc);
+            return newFunc;
+        }
     }
 
     /**
      * Returns a list of all (global) variables defined in this symbol table
      */
     public List<GlobalVariable> getGlobalVariables() {
-        throw new RuntimeException("Not implemented");
+        return List.copyOf(globalTable.values());
     }
+
 }

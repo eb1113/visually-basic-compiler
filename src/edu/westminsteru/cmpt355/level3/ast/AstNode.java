@@ -5,7 +5,7 @@ import java.lang.Iterable;
 
 /** Base interface for all AST nodes */
 public sealed interface AstNode extends TreeNode<AstNode>
-    permits AstProgram, AstStatement, AstExpression
+        permits AstExpression, AstParameter, AstPrintArgument, AstProgram, AstStatement
 {
     /** Returns the child nodes of this AST node */
     @Override

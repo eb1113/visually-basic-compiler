@@ -5,5 +5,9 @@ package edu.westminsteru.cmpt355.level3.ast;
  * function as a sentence/line of code
  */
 public sealed interface AstStatement extends AstNode
-    permits /* AST statement types go here */
+        permits AstPrint,
+        AstAssembly, AstBlock,
+        AstVariableAssignment, AstVariableDeclaration,
+        AstFunctionDeclaration, AstFunctionCall, AstReturn,
+        AstIf, AstWhile, AstFor, AstPascalFor, AstIncrement /* AST statement types go here */
 { }

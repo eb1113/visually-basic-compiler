@@ -17,13 +17,13 @@ public interface SymbolTable {
      * @param name the name of the variable to resolve
      */
     Optional<? extends Variable> resolveVariable(String name);
-
+    
     /**
      * Returns the function with the given name or an empty Optional if none is defined.
      * @param name the name of the function to resolve
      */
     Optional<Function> resolveFunction(String name);
-
+    
     /**
      * Defines a new variable having the given type and name.
      * @return the newly-defined variable

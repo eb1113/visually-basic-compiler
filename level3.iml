@@ -11,5 +11,6 @@
     <orderEntry type="library" name="antlr-4.13.2-complete" level="project" />
     <orderEntry type="library" name="jasm" level="project" />
     <orderEntry type="library" name="compiler-tester-0.3" level="project" />
+    <orderEntry type="library" name="compiler-tester-0.4" level="project" />
   </component>
 </module>

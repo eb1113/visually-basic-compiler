@@ -3,9 +3,12 @@ package edu.westminsteru.cmpt355.level3;
 import edu.westminsteru.jasm.Bytecode;
 import edu.westminsteru.jasm.JasmAssembler;
 import edu.westminsteru.jasm.Status;
+import edu.westminsteru.cmpt355.level3.VisuallyBasicLexer;
+import edu.westminsteru.cmpt355.level3.VisuallyBasicParser;
 import edu.westminsteru.cmpt355.level3.ast.AstProgram;
 import edu.westminsteru.cmpt355.level3.util.Tree;
 import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -22,7 +25,7 @@ public class Main {
         boolean saveAst = false, saveIr = false;
         boolean runAtOnce = false;
         Path inFile = null;
-        Path outPath = Path.of("");
+        Path outPath = Path.of("test/out");
         for (int i = 0; i < args.length; ++i) {
             if (args[i].equals("-h") || args[i].equals("-help") || args[i].equals("--help")) {
                 printUsage();
@@ -70,8 +73,8 @@ public class Main {
         if (saveIr) {
             Path irPath = outPath.resolve(inFilenameStem + ".ir.txt");
             try (BufferedWriter bw = Files.newBufferedWriter(irPath);
-                 PrintWriter astOut = new PrintWriter(bw)) {
-                Tree.print(ast, astOut);
+                 PrintWriter irOut = new PrintWriter(bw)) {
+                Tree.print(ir, irOut);
                 System.out.printf("IR saved to %s.\n", irPath);
             }
         }
@@ -147,20 +150,15 @@ public class Main {
 
     private static AstProgram parse(Path file) throws Exception {
         var stream = CharStreams.fromFileName(file.toString());
-
-        // Fill in appropriately for your own lexer/parser, something like
-        /*
-        var lexer = new Level3Lexer(stream);
-        var parser = new Level3Parser(new CommonTokenStream(lexer));
-        var program = parser.program().n;
+        var lexer = new VisuallyBasicLexer(stream);
+        var parser = new VisuallyBasicParser(new CommonTokenStream(lexer));
+        var programContext = parser.program();
+        var program = programContext.n;
 
         if (program == null)
-            throw new Exception();
+            throw new Exception("Parsing failed.");
 
         return program;
-         */
-
-        return null;
     }
 
     private static void printUsage() {
@@ -179,8 +177,8 @@ public class Main {
     }
 
     private static void saveBytecode(Bytecode bytecode, Path outDirectory) throws IOException {
+        Files.createDirectories(outDirectory);
         Path outFile = outDirectory.resolve(bytecode.className() + ".class");
-        Files.createDirectories(outFile.getParent());
         Files.write(outFile, bytecode.data());
     }
 }

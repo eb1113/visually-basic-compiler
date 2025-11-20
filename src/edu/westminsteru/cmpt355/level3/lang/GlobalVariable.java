@@ -7,11 +7,9 @@ package edu.westminsteru.cmpt355.level3.lang;
  * instances of this interface should contain just the needed information to
  * access the relevant variable.
  */
-public record GlobalVariable(/* add necessary fields here */) implements Variable {
+public record GlobalVariable(Type type, String name) implements Variable {
 
-    // Suggestion: fill in this method to return the field descriptor for
-    // this variable based on the variable's type
     public String getDescriptor() {
-        throw new RuntimeException("Not implemented");
+        return type.getDescriptor();
     }
 }

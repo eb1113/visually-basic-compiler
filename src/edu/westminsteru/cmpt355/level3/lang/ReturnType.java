@@ -5,5 +5,25 @@ public sealed interface ReturnType
 
     public static final ReturnType.Void VOID = Void.INSTANCE;
 
-    enum Void implements ReturnType { INSTANCE }
+    String getDescriptor();
+
+    /**
+     * Converts a string to a ReturnType (Type or VOID)
+     */
+    static ReturnType fromString(String s) {
+        if (s.equalsIgnoreCase("void")) {
+            return ReturnType.VOID;
+        } else {
+            return Type.fromString(s);
+        }
+    }
+
+    enum Void implements ReturnType {
+        INSTANCE;
+
+        @Override
+        public String getDescriptor() {
+            return "V";
+        }
+    }
 }

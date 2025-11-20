@@ -5,6 +5,8 @@ import edu.westminsteru.cmpt355.level3.lang.LocalVariable;
 import edu.westminsteru.cmpt355.level3.lang.Type;
 import edu.westminsteru.cmpt355.level3.lang.Variable;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -14,12 +16,23 @@ import java.util.Optional;
 public class LocalSymbolTable implements SymbolTable {
 
     private final GlobalSymbolTable globalTable;
-
-    // suggestion: use a Map<String, LocalVariable> to store symbols
+    private final LocalSymbolTable parent;
+    private final LocalSymbolTable root;
+    private final Map<String, LocalVariable> localTable;
+    
+    // Track the next available local variable index; only meaningful for the root scope
+    private int nextIndex = 0;
 
     /** Creates a new local symbol table, descending from a given global symbol table */
     public LocalSymbolTable(GlobalSymbolTable globalTable) {
+        this(globalTable, null);
+    }
+
+    private LocalSymbolTable(GlobalSymbolTable globalTable, LocalSymbolTable parent) {
         this.globalTable = globalTable;
+        this.parent = parent;
+        this.root = parent == null ? this : parent.root;
+        this.localTable = new HashMap<String, LocalVariable>();
     }
 
     /**
@@ -29,7 +42,13 @@ public class LocalSymbolTable implements SymbolTable {
      */
     @Override
     public Optional<? extends Variable> resolveVariable(String name) {
-        throw new RuntimeException("Not implemented");
+        if(localTable.containsKey(name)){
+            return Optional.ofNullable(localTable.get(name));
+        }
+        if (parent != null) {
+            return parent.resolveVariable(name);
+        }
+        return globalTable.resolveVariable(name);
     }
 
     /**
@@ -39,7 +58,10 @@ public class LocalSymbolTable implements SymbolTable {
      */
     @Override
     public Optional<Function> resolveFunction(String name) {
-        throw new RuntimeException("Not implemented");
+        if (parent != null) {
+            return parent.resolveFunction(name);
+        }
+        return globalTable.resolveFunction(name); 
     }
 
     /**
@@ -49,6 +71,21 @@ public class LocalSymbolTable implements SymbolTable {
      */
     @Override
     public LocalVariable defineVariable(Type type, String name) throws DuplicateDefinitionException {
-        return null;
+        if(localTable.containsKey(name)){
+            throw new DuplicateDefinitionException("Variable " + name + " is already defined in this scope.");
+        }
+        LocalVariable newVar = new LocalVariable(type, name, allocateIndex(type));
+        localTable.put(name, newVar);
+        return newVar;
+    }
+
+    private int allocateIndex(Type type) {
+        int index = root.nextIndex;
+        root.nextIndex += type.size(); // Increment by the size of the type (1 for int/string/boolean, 2 for double)
+        return index;
+    }
+
+    public LocalSymbolTable createChildScope() {
+        return new LocalSymbolTable(globalTable, this);
     }
 }

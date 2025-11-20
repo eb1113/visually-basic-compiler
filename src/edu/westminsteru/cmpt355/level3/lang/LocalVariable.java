@@ -7,5 +7,5 @@ package edu.westminsteru.cmpt355.level3.lang;
  * instances of this interface should contain just the needed information to
  * access the relevant variable.
  */
-public record LocalVariable(/* add necessary fields here */) implements Variable {
+public record LocalVariable(Type type, String name, int index) implements Variable {
 }
