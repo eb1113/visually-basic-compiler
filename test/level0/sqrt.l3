@@ -1,0 +1,13 @@
+** sqrt.l0: tests of the sqrt() function
+[[BEGIN TEST CASES]]
+Output: <<1.0
+2.0
+1.224744871391589
+1.3592715767717234>>
+[[END TEST CASES]]
+**
+
+spill(sqrt(1.0));
+spill(sqrt(4.0));
+spill(sqrt(1.5));
+spill(sqrt(sqrt(sqrt(sqrt(135.8)))));

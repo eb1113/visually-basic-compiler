@@ -1,0 +1,46 @@
+** nestedif.l2: nested if (and if-else) statements
+[[BEGIN TEST CASES]]
+Output: <<A1
+A2
+B1
+B2
+C1
+C2
+D
+E
+F>>
+[[END TEST CASES]]
+**
+
+:) (your program should print all the letters except for Xs)
+
+if (true) {
+    spill("A1");
+    spill("A2");
+    if (false) {
+        spill("X0");
+    } whateva {
+        spill("B1");
+        spill("B2");
+    }
+    spill("C1");
+    spill("C2");
+} whateva {
+    spill("X1");
+    if (false) {
+        spill("X2");
+    } whateva {
+        spill("X3");
+    }
+    spill("X4");
+}
+
+if (true) {
+    spill("D");
+    if (true) {
+        spill("E");
+        if (true) {
+            spill("F");
+        }
+    }
+}

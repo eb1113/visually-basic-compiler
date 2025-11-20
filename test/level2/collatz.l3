@@ -1,0 +1,43 @@
+** collatz.l2: an application that tests the Collatz conjecture
+[[BEGIN TEST CASES]]
+Interaction: <<Starting number: {{4}}
+4
+2
+1
+It took 2 iterations to reach 1.
+This number does not falsify the Collatz conjecture.>>
+--
+Interaction: <<Starting number: {{5}}
+5
+16
+8
+4
+2
+1
+It took 5 iterations to reach 1.
+This number does not falsify the Collatz conjecture.>>
+[[END TEST CASES]]
+**
+
+int n istotes fetch("Starting number: ");
+int iterations istotes 0;
+bet (n not the vibe 1) {
+    spill(n);
+
+    if (n % 2 vibes with 0) {
+        n istotes n / 2;
+    } whateva {
+        n istotes 3 * n + 1;
+    }
+
+    ++iterations;
+}
+spill(1);
+
+spill("It took ", iterations, " iterations to reach 1.");
+spill("This number does not falsify the Collatz conjecture.");
+
+:) Incidentally, if you find a starting number that *doesn't* eventually reach
+:) 1 through this procedure, you could get really famous! (Well... *math*
+:) famous, anyway.)
+

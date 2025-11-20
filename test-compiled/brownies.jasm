@@ -1,0 +1,147 @@
+.class public brownies
+.source test/level0/brownies.l3
+.super java/lang/Object
+.field public static waste D
+.field public static pA D
+.field public static bw D
+.field public static pw D
+.field public static nw D
+.field public static bl D
+.field public static pl D
+.field public static nl D
+.field public static bA D
+.field private static scanner Ljava/util/Scanner;
+
+.method public static main ([Ljava/lang/String;)V
+.code
+    new java/util/Scanner
+    dup
+    getstatic java/lang/System in Ljava/io/InputStream;
+    invokespecial java/util/Scanner <init> (Ljava/io/InputStream;)V
+    putstatic brownies scanner Ljava/util/Scanner;
+    getstatic java/lang/System out Ljava/io/PrintStream;
+    ldc "=== Pan dimensions ==="
+    invokevirtual java/io/PrintStream println (Ljava/lang/String;)V
+    getstatic java/lang/System out Ljava/io/PrintStream;
+    ldc "width> "
+    invokevirtual java/io/PrintStream print (Ljava/lang/String;)V
+    invokestatic brownies readDouble ()D
+    putstatic brownies pw D
+    getstatic java/lang/System out Ljava/io/PrintStream;
+    ldc "height> "
+    invokevirtual java/io/PrintStream print (Ljava/lang/String;)V
+    invokestatic brownies readDouble ()D
+    putstatic brownies pl D
+    getstatic brownies pw D
+    getstatic brownies pl D
+    dmul
+    putstatic brownies pA D
+    getstatic java/lang/System out Ljava/io/PrintStream;
+    ldc "Pan area: "
+    getstatic brownies pA D
+    invokestatic java/lang/Double toString (D)Ljava/lang/String;
+    invokevirtual java/lang/String concat (Ljava/lang/String;)Ljava/lang/String;
+    invokevirtual java/io/PrintStream println (Ljava/lang/String;)V
+    getstatic java/lang/System out Ljava/io/PrintStream;
+    ldc "=== Brownie dimensions ==="
+    invokevirtual java/io/PrintStream println (Ljava/lang/String;)V
+    getstatic java/lang/System out Ljava/io/PrintStream;
+    ldc "width> "
+    invokevirtual java/io/PrintStream print (Ljava/lang/String;)V
+    invokestatic brownies readDouble ()D
+    putstatic brownies bw D
+    getstatic java/lang/System out Ljava/io/PrintStream;
+    ldc "height> "
+    invokevirtual java/io/PrintStream print (Ljava/lang/String;)V
+    invokestatic brownies readDouble ()D
+    putstatic brownies bl D
+    getstatic brownies bw D
+    getstatic brownies bl D
+    dmul
+    putstatic brownies bA D
+    getstatic java/lang/System out Ljava/io/PrintStream;
+    ldc "Brownie area: "
+    getstatic brownies bA D
+    invokestatic java/lang/Double toString (D)Ljava/lang/String;
+    invokevirtual java/lang/String concat (Ljava/lang/String;)Ljava/lang/String;
+    invokevirtual java/io/PrintStream println (Ljava/lang/String;)V
+    getstatic brownies pw D
+    getstatic brownies bw D
+    ddiv
+    getstatic brownies pw D
+    getstatic brownies bw D
+    ddiv
+    ldc2 1.0
+    drem
+    dsub
+    putstatic brownies nw D
+    getstatic brownies pl D
+    getstatic brownies bl D
+    ddiv
+    getstatic brownies pl D
+    getstatic brownies bl D
+    ddiv
+    ldc2 1.0
+    drem
+    dsub
+    putstatic brownies nl D
+    getstatic java/lang/System out Ljava/io/PrintStream;
+    ldc "You can cut out a grid of "
+    getstatic brownies nw D
+    invokestatic java/lang/Double toString (D)Ljava/lang/String;
+    invokevirtual java/lang/String concat (Ljava/lang/String;)Ljava/lang/String;
+    ldc " by "
+    invokevirtual java/lang/String concat (Ljava/lang/String;)Ljava/lang/String;
+    getstatic brownies nl D
+    invokestatic java/lang/Double toString (D)Ljava/lang/String;
+    invokevirtual java/lang/String concat (Ljava/lang/String;)Ljava/lang/String;
+    ldc " brownies ("
+    invokevirtual java/lang/String concat (Ljava/lang/String;)Ljava/lang/String;
+    getstatic brownies nw D
+    getstatic brownies nl D
+    dmul
+    invokestatic java/lang/Double toString (D)Ljava/lang/String;
+    invokevirtual java/lang/String concat (Ljava/lang/String;)Ljava/lang/String;
+    ldc " brownies total)."
+    invokevirtual java/lang/String concat (Ljava/lang/String;)Ljava/lang/String;
+    invokevirtual java/io/PrintStream println (Ljava/lang/String;)V
+    getstatic brownies pA D
+    getstatic brownies bA D
+    getstatic brownies nw D
+    dmul
+    getstatic brownies nl D
+    dmul
+    dsub
+    putstatic brownies waste D
+    getstatic java/lang/System out Ljava/io/PrintStream;
+    ldc "This wastes a total brownie area of "
+    getstatic brownies waste D
+    invokestatic java/lang/Double toString (D)Ljava/lang/String;
+    invokevirtual java/lang/String concat (Ljava/lang/String;)Ljava/lang/String;
+    ldc "."
+    invokevirtual java/lang/String concat (Ljava/lang/String;)Ljava/lang/String;
+    invokevirtual java/io/PrintStream println (Ljava/lang/String;)V
+    return
+.end code
+
+
+.method public static readInt ()I
+.code
+    getstatic brownies scanner Ljava/util/Scanner;
+    invokevirtual java/util/Scanner nextInt ()I
+    ireturn
+.end code
+
+.method public static readDouble ()D
+.code
+    getstatic brownies scanner Ljava/util/Scanner;
+    invokevirtual java/util/Scanner nextDouble ()D
+    dreturn
+.end code
+
+.method public static readString ()Ljava/lang/String;
+.code
+    getstatic brownies scanner Ljava/util/Scanner;
+    invokevirtual java/util/Scanner next ()Ljava/lang/String;
+    areturn
+.end code

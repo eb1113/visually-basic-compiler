@@ -1,0 +1,43 @@
+** functions.l1: functions and parameters
+[[BEGIN TEST CASES]]
+Output: <<void_no_parameters()
+int_no_parameters()
+123
+void_int_parameters(1, 4, 9)
+int_int_parameters(1, 4, 9)
+36
+complex_function(58, 1.2, badger badger)
+69.6>>
+[[END TEST CASES]]
+**
+
+void void_no_parameters() {
+    spill("void_no_parameters()");
+}
+
+int int_no_parameters() {
+    spill("int_no_parameters()");
+    period 123;
+}
+
+void void_int_parameters(its giving int a, its giving int b, its giving int c) {
+    spill("void_int_parameters(", a, ", ", b, ", ", c, ")");
+    period;
+    spill("this line should never be printed");
+}
+
+int int_int_parameters(its giving int a, its giving int b, its giving int c) {
+    spill("int_int_parameters(", a, ", ", b, ", ", c, ")");
+    period a * b * c;
+}
+
+double complex_function(its giving int x, its giving double y, its giving string s) {
+    spill("complex_function(", x, ", ", y, ", ", s, ")");
+    period y * x;
+}
+
+void_no_parameters();
+spill(int_no_parameters());
+void_int_parameters(1, 4, 9);
+spill(int_int_parameters(1, 4, 9));
+spill(complex_function(58, 1.2, "badger badger"));

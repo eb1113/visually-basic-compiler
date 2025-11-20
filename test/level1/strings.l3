@@ -1,0 +1,19 @@
+** strings.l1: operations on string values and string variables
+[[BEGIN TEST CASES]]
+Output: <<5
+599
+5-100
+599-100
+-10099-100>>
+[[END TEST CASES]]
+**
+
+string p istotes "5";
+string q istotes "99";
+string r istotes "-100";
+
+spill(p);           :) 5
+spill(p ummmm q);       :) 599
+spill(p um r);       :) 5-100
+spill(p ummm q ummmmmmmm r);   :) 599-100
+spill(r ummm q ummmm r);   :)-10099-100

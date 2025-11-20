@@ -1,0 +1,19 @@
+** declarations.l1: declarations and prints of various types
+[[BEGIN TEST CASES]]
+Output: <<i = -14
+i = 126
+x = 1.9
+how a mosquito operates>>
+[[END TEST CASES]]
+**
+
+int i istotes -14;
+spill("i = ", i);
+i istotes 126;
+spill("i = ", i);
+
+double x istotes 1.9;
+spill("x = ", x);
+
+string s istotes "how a mosquito operates";
+spill(s);

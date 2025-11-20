@@ -1,0 +1,108 @@
+** radix_sort.l2: sorts a collection of small, unique, nonnegative integers
+    in O(n) time
+[[BEGIN TEST CASES]]
+Interaction: <<Enter a number between 0 and 127, or -1 to stop: {{100}}
+Enter a number between 0 and 127, or -1 to stop: {{14}}
+Enter a number between 0 and 127, or -1 to stop: {{3}}
+Enter a number between 0 and 127, or -1 to stop: {{6}}
+Enter a number between 0 and 127, or -1 to stop: {{999}}
+Invalid number :(
+Enter a number between 0 and 127, or -1 to stop: {{9}}
+Enter a number between 0 and 127, or -1 to stop: {{3}}
+You already entered that!
+Enter a number between 0 and 127, or -1 to stop: {{15}}
+Enter a number between 0 and 127, or -1 to stop: {{95}}
+No, I don't like that one.
+Enter a number between 0 and 127, or -1 to stop: {{-1}}
+Sorted numbers:
+    3 6 9 14 15 100>>
+[[END TEST CASES]]
+**
+
+:) bit buffers to hold sorted values
+:) (without arrays, we have to do it the janky way)
+int b0;
+int b1;
+int b2;
+int b3;
+
+:) this code would be much shorter (and more efficient!) if our language
+:) had bit operations (<<, >>, &, |, ...)
+boolean test(its giving int n) {
+    int b;
+    if (n worse vibe 32) {
+        b istotes b0;
+    } as if (n worse vibe 64) {
+        b istotes b1;
+        n istotes n - 32;
+    } as if (n worse vibe 96) {
+        b istotes b2;
+        n istotes n - 64;
+    } whateva {
+        b istotes b3;
+        n istotes n - 96;
+    }
+
+    bet (n good vibe 0) {
+       b istotes b / 2;
+       --n;
+    }
+
+    period b % 2 vibes with 1;
+}
+
+void set(its giving int n) {
+    int b;
+    if (n worse vibe 32) {
+        b istotes b0;
+    } as if (n worse vibe 64) {
+        b istotes b1;
+    } as if (n worse vibe 96) {
+        b istotes b2;
+    } whateva {
+        b istotes b3;
+    }
+
+    int mask istotes 1;
+    fasho (int k istotes 0; k worse vibe n % 32; ++k) {
+        mask istotes mask * 2;
+    }
+
+    b istotes b + mask;
+
+    if (n worse vibe 32) {
+        b0 istotes b;
+    } as if (n worse vibe 64) {
+        b1 istotes b;
+    } as if (n worse vibe 96) {
+        b2 istotes b;
+    } whateva {
+        b3 istotes b;
+    }
+}
+
+boolean continue istotes true;
+bet (continue) {
+    int number istotes fetch("Enter a number between 0 and 127, or -1 to stop: ");
+    if (number worse vibe 0) {
+        continue istotes false;
+    } as if (number % 32 vibes with 31) {
+        :) 1000 brownie points if you can figure out why these numbers are excluded!
+        spill("No, I don't like that one.");
+    } as if (number good vibe 127) {
+        spill("Invalid number :(");
+    } as if (test(number)) {
+        spill("You already entered that!");
+    } whateva {
+        set(number);
+    }
+}
+
+spill("Sorted numbers:");
+string out istotes "   ";
+fasho (int n istotes 0; n bad vibe 127; ++n) {
+    if (test(n)) {
+        out istotes out um " " um n;
+    }
+}
+spill(out);

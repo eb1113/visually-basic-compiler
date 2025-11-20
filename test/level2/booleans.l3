@@ -1,0 +1,40 @@
+** booleans.l2: operations on boolean values and boolean variables
+[[BEGIN TEST CASES]]
+Output: <<true
+false
+false
+true
+true
+false
+false
+false
+true
+true
+true
+false
+false
+true>>
+[[END TEST CASES]]
+**
+
+boolean T istotes true;
+boolean F istotes false;
+
+spill(T);
+spill(F);
+
+spill(not T);
+spill(not F);
+
+spill(T and T);
+spill(T and F);
+spill(F and T);
+spill(F and F);
+
+spill(T or T);
+spill(T or F);
+spill(F or T);
+spill(F or F);
+
+spill(not F and F);
+spill(not T or T);

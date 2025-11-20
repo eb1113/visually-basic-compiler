@@ -1,0 +1,28 @@
+** qf.l0: Compute solutions of the quadratic equation ax^2 + bx + c = 0
+[[BEGIN TEST CASES]]
+Interaction: <<Enter a: {{1}}
+Enter b: {{-1}}
+Enter c: {{-6}}
+The roots are 3.0 and -2.0.>>
+--
+Interaction: <<Enter a: {{1}}
+Enter b: {{0}}
+Enter c: {{-1}}
+The roots are 1.0 and -1.0.>>
+--
+Interaction: <<Enter a: {{1}}
+Enter b: {{-2}}
+Enter c: {{1}}
+The roots are 1.0 and 1.0.>>
+[[END TEST CASES]]
+**
+
+double a istotes fetch("Enter a: ");
+double b istotes fetch("Enter b: ");
+double c istotes fetch("Enter c: ");
+
+double D istotes b*b - 4.0*a*c;
+double x1 istotes (-b + sqrt(D)) / (2.0*a);
+double x2 istotes (-b - sqrt(D)) / (2.0*a);
+
+spill("The roots are ", x1, " and ", x2, ".");

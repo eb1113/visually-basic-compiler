@@ -1,0 +1,25 @@
+** ints.l1: operations on int values and int variables
+[[BEGIN TEST CASES]]
+Output: <<5
+104
+105
+495
+0
+-20
+-1
+4>>
+[[END TEST CASES]]
+**
+
+int p istotes 5;
+int q istotes 99;
+int r istotes -100;
+
+spill(p);       :) 5
+spill(p + q);   :) 104
+spill(p - r);   :) 105
+spill(p * q);   :) 495
+spill(p / r);   <3 0
+spill(r / p);   <3 -20
+spill(r / q);   <3 -1
+spill(q % p);   <3 4

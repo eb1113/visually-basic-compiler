@@ -1,0 +1,25 @@
+** doubles.l1: operations on double values and double variables
+[[BEGIN TEST CASES]]
+Output: <<5.0
+104.0
+105.0
+495.0
+-0.05
+-20.0
+-1.0101010101010102
+4.0>>
+[[END TEST CASES]]
+**
+
+double p istotes 5;
+double q istotes 99;
+double r istotes -100;
+
+spill(p);       :) 5.0
+spill(p + q);   :) 104.0
+spill(p - r);   :) 105.0
+spill(p * q);   :) 495.0
+spill(p / r);   <3 -0.05
+spill(r / p);   <3 -20.0
+spill(r / q);   <3 -1.0101010101010102
+spill(q % p);   <3 4.0

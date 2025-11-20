@@ -1,0 +1,13 @@
+** relationalprecedence.l2: precedence of relational and logic operators
+[[BEGIN TEST CASES]]
+Output: <<true
+true
+true
+true>>
+[[END TEST CASES]]
+**
+
+spill(0 bad vibe 1 and 1 bad vibe 2);
+spill(0 + 0 bad vibe 0 + 1 and 1 + 1 bad vibe 2 + 0);
+spill(-1 bad vibe 0 or 1 bad vibe -1);
+spill(0 - 1 bad vibe 0 + 0 or 0 + 1 bad vibe 0 - 1);

@@ -1,0 +1,94 @@
+** relational.l2: relational operators
+[[BEGIN TEST CASES]]
+Output: <<Ints: 0 and 0
+true
+false
+false
+true
+false
+true
+Ints: 0 and 1
+false
+true
+true
+false
+false
+true
+Doubles: 0 and 0
+true
+false
+false
+true
+false
+true
+Doubles: 0 and 1
+false
+true
+true
+false
+false
+true
+Strings: 'a' and 'a'
+true
+false
+false
+true
+false
+true
+Strings: 'a' and 'b'
+false
+true
+true
+false
+false
+true>>
+[[END TEST CASES]]
+**
+
+spill("Ints: 0 and 0");
+spill(0 vibes with 0);
+spill(0 not the vibe 0);
+spill(0 worse vibe 0);
+spill(0 better vibe 0);
+spill(0 good vibe 0);
+spill(0 bad vibe 0);
+
+spill("Ints: 0 and 1");
+spill(0 vibes with 1);
+spill(0 not the vibe 1);
+spill(0 worse vibe 1);
+spill(0 better vibe 1);
+spill(0 good vibe 1);
+spill(0 bad vibe 1);
+
+spill("Doubles: 0 and 0");
+spill(0.0 vibes with 0.0);
+spill(0.0 not the vibe 0.0);
+spill(0.0 worse vibe 0.0);
+spill(0.0 better vibe 0.0);
+spill(0.0 good vibe 0.0);
+spill(0.0 bad vibe 0.0);
+
+spill("Doubles: 0 and 1");
+spill(0.0 vibes with 1.0);
+spill(0.0 not the vibe 1.0);
+spill(0.0 worse vibe 1.0);
+spill(0.0 better vibe 1.0);
+spill(0.0 good vibe 1.0);
+spill(0.0 bad vibe 1.0);
+
+spill("Strings: 'a' and 'a'");
+spill("a" vibes with "a");
+spill("a" not the vibe "a");
+spill("a" worse vibe "a");
+spill("a" better vibe "a");
+spill("a" good vibe "a");
+spill("a" bad vibe "a");
+
+spill("Strings: 'a' and 'b'");
+spill("a" vibes with "b");
+spill("a" not the vibe "b");
+spill("a" worse vibe "b");
+spill("a" better vibe "b");
+spill("a" good vibe "b");
+spill("a" bad vibe "b");

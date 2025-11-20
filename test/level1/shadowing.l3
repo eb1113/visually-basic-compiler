@@ -1,0 +1,51 @@
+** shadowing.l1: globals and locals and locals shadowing globals
+[[BEGIN TEST CASES]]
+Output: <<At global scope
+gi: 1, i: 2, j: 3, gx: 1.0, x: 2.0, y: 3.0
+
+In f()
+gi (global variable): 1
+i (global int shadowed as local int): 102
+j (global int shadowed as local double): 103.0
+gx (global variable): 1.0
+x (global double shadowed as local double): 102.0
+y (global double shadowed as local string): one hundred three
+
+At global scope again
+gi: 1, i: 2, j: 3, gx: 1.0, x: 2.0, y: 3.0>>
+[[END TEST CASES]]
+**
+
+int gi istotes 1;
+int i istotes 2;
+int j istotes 3;
+
+double gx istotes 1.0;
+double x istotes 2.0;
+double y istotes 3.0;
+
+void f() {
+    spill();
+    spill("In f()");
+    spill("gi (global variable): ", gi);
+    int i istotes 102;
+    spill("i (global int shadowed as local int): ", i);
+    double j istotes 103;
+    spill("j (global int shadowed as local double): ", j);
+
+    spill("gx (global variable): ", gx);
+    double x istotes 102;
+    spill("x (global double shadowed as local double): ", x);
+    string y istotes "one hundred three";
+    spill("y (global double shadowed as local string): ", y);
+}
+
+spill("At global scope");
+spill("gi: ", gi, ", i: ", i, ", j: ", j, ", gx: ", gx, ", x: ", x, ", y: ", y);
+
+f();
+
+spill();
+spill("At global scope again");
+:) (this should print out the same thing that it did before)
+spill("gi: ", gi, ", i: ", i, ", j: ", j, ", gx: ", gx, ", x: ", x, ", y: ", y);

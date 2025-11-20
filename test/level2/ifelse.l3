@@ -1,0 +1,64 @@
+** ifelse.l2: if-else (not plain if) statements
+[[BEGIN TEST CASES]]
+Output: <<A1
+A2
+B1
+B2
+C
+D1
+D2
+E1
+E2>>
+[[END TEST CASES]]
+**
+
+:) (your program should print all the letters except for Xs)
+
+if (true) {
+    spill("A1");
+    spill("A2");
+} whateva {
+    spill("X0");
+}
+
+if (false) {
+    spill("X11");
+    spill("X12");
+} whateva {
+    spill("B1");
+    spill("B2");
+}
+
+if (true) {
+    spill("C");
+} as if (true) {
+    spill("X2");
+} as if (true) {
+    spill("X3");
+} whateva {
+    spill("X4");
+}
+
+if (false) {
+    spill("X5");
+} as if (false) {
+    spill("X6");
+} as if (false) {
+    spill("X7");
+} as if (true) {
+    spill("D1");
+    spill("D2");
+} whateva {
+    spill("X8");
+}
+
+if (false) {
+    spill("X9");
+} as if (false) {
+    spill("X10");
+} as if (false) {
+    spill("X11");
+} whateva {
+    spill("E1");
+    spill("E2");
+}

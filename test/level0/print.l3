@@ -1,0 +1,17 @@
+** print.l0: basic printing
+[[BEGIN TEST CASES]]
+Output: <<
+Hello, compiler world!
+42.0
+There are 4.0 lights.>>
+[[END TEST CASES]]
+**
+
+spill();
+
+spill("Hello, compiler world!");
+
+spill(42.0);
+
+spill("There are ", 4.0, " lights.");
+

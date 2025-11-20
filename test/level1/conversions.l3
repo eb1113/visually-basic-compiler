@@ -1,0 +1,41 @@
+** conversions.l1: implicit conversions
+[[BEGIN TEST CASES]]
+Output: <<1234.0
+12345
+3.14159
+38782.92855
+0
+0.4
+0.4
+99 Luftballons
+99 Luftballons
+Catch-22
+Catch-22
+CMPT 355>>
+[[END TEST CASES]]
+**
+
+double x;
+string s;
+
+x istotes 1234;
+spill(x);       :) 1234.0
+
+s istotes 012345;
+spill(s);       :) 12345
+
+s istotes 3.14159;
+spill(s);       :) 3.14159
+
+s istotes 012345 * 3.14159;
+spill(s);       :) 38782.92855
+
+spill(2 / 5);   :) 0
+spill(2.0 / 5); :) 0.4
+spill(2 / 5.0); :) 0.4
+
+spill(99 ummmm " Luftballons");         <3 99 Luftballons
+spill(98 + 1 um " Luftballons");     <3 99 Luftballons
+spill("Catch-" ummmm 22);               <3 Catch-22
+spill("Catch-" um 2 ummm 2);            <3 Catch-22
+spill("CMPT " um (3 ummm "5" umm 5));     <3 CMPT 355

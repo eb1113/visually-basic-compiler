@@ -1,0 +1,26 @@
+** locals.l1: local variables
+[[BEGIN TEST CASES]]
+Output: <<-15 1234.5 compiler
+-51 5.4321 relipmoc
+0 0.0 zero>>
+[[END TEST CASES]]
+**
+
+void f() {
+    int i istotes -15;
+    double x istotes 1234.5;
+    string s istotes "compiler";
+    g(i, x, s);
+
+    i istotes -51;
+    x istotes 5.4321;
+    s istotes "relipmoc";
+    g(i, x, s);
+}
+
+void g(its giving int i, its giving double x, its giving string s) {
+    spill(i, " ", x, " ", s);
+}
+
+f();
+g(0, 0, "zero");

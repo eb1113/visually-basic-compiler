@@ -1,0 +1,42 @@
+** casts.l2: explicit typecasts
+   (This test file is optional - explicit typecasts are not required at level 2.)
+[[BEGIN TEST CASES]]
+Output: <<35
+35.0
+35
+9
+9.81
+9.81
+35
+9.81
+cheese
+true
+true
+true
+1.8
+12
+100
+67>>
+[[END TEST CASES]]
+**
+
+spill((int)35);
+spill((double)35);
+spill((string)35);
+
+spill((int)9.81);
+spill((double)9.81);
+spill((string)9.81);
+
+spill((int)"35");
+spill((double)"9.81");
+spill((string)"cheese");
+
+spill((boolean)true);
+spill((boolean)"true");
+spill((string)true);
+
+spill((double)9/5);
+spill((string)1+2);
+spill(50*(int)2.5);
+spill(6+(string)7);

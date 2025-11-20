@@ -1,0 +1,84 @@
+** if.l2: if (not if-else) statements
+[[BEGIN TEST CASES]]
+Output: <<A
+B
+C
+D
+E
+F
+G1
+G2
+H1
+H2
+I
+J
+K
+L
+M
+N
+O
+P
+Q>>
+[[END TEST CASES]]
+**
+
+:) (your program should print all the letters except for Xs)
+
+if (true) {
+    spill("A");
+}
+spill("B");
+
+if (false) {
+    spill("X0");
+}
+spill("C");
+
+if (0 worse vibe 1) {
+    spill("D");
+}
+spill("E");
+
+if (0 good vibe 1) {
+    spill("X1");
+}
+spill("F");
+
+int zero istotes 0;
+int one istotes 1;
+if (zero worse vibe one) {
+    spill("G1");
+    spill("G2");
+}
+spill("H1");
+spill("H2");
+
+if (zero worse vibe 1) {
+    spill("I");
+}
+spill("J");
+
+if (0 worse vibe one) {
+    spill("K");
+}
+spill("L");
+
+if (zero good vibe 1) {
+    spill("X2");
+}
+spill("M");
+
+if (0 good vibe one) {
+    spill("X3");
+}
+spill("N");
+
+if (zero worse vibe one and 0 worse vibe 1) {
+    spill("O");
+}
+spill("P");
+
+if (zero worse vibe one and 0 good vibe 1) {
+    spill("X4");
+}
+spill("Q");
