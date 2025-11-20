@@ -1,0 +1,36 @@
+/* arrays_full.l3: test all array features
+[[BEGIN TEST CASES]]
+Interaction: <<How many numbers? {{3}}
+data[0] = {{1}}
+data[1] = {{2}}
+data[2] = {{3}}
+[1.0,2.0,3.0]
+[1,1,2,3,5,8,13,21,34]
+["fizzy","lifting","drink"]>>
+--
+Interaction: <<How many numbers? {{0}}
+[]>>
+[[END TEST CASES]]
+*/
+
+int length = input("How many numbers? ");
+double[] data = new double[length];
+
+for (int i = 0; i < data.length; i++) {
+    data[i] = input("data[" + i + "] = ");
+}
+
+print(data);
+
+int[] intData = new int[9];
+intData[0] = 1;
+intData[1] = 1;
+for (int i = 2; i < intData.length; ++i)
+    intData[i] = intData[i - 2] + intData[i - 1];
+print(intData);
+
+string[] stringData = new string[3];
+stringData[0] = "fizzy";
+stringData[1] = "lifting";
+stringData[2] = "drink";
+print(stringData);

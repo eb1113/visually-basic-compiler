@@ -1,0 +1,24 @@
+/* variables.l3: Test that variables work
+[[BEGIN TEST CASES]]
+Interaction: <<x: {{1}}
+y: {{2}}
+z: {{3}}
+z = 3.0, y = 2.0, x = 1.0>>
+--
+Interaction: <<x: {{-4}}
+y: {{-5}}
+z: {{9}}
+z = 9.0, y = -5.0, x = -4.0>>
+--
+Interaction: <<x: {{0.1234}}
+y: {{1.2345}}
+z: {{2.3456}}
+z = 2.3456, y = 1.2345, x = 0.1234>>
+[[END TEST CASES]]
+*/
+
+double x = input("x: ");
+double why = input("y: ");
+double _zee = input("z: ");
+
+print("z = ", _zee, ", y = ", why, ", x = ", x);

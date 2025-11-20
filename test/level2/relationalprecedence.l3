@@ -1,0 +1,13 @@
+/* relationalprecedence.l3: precedence of relational and logic operators
+[[BEGIN TEST CASES]]
+Output: <<true
+true
+true
+true>>
+[[END TEST CASES]]
+*/
+
+print(0 <= 1 && 1 <= 2);                    // true
+print(0 + 0 <= 0 + 1 && 1 + 1 <= 2 + 0);    // true
+print(-1 <= 0 || 1 <= -1);                  // true
+print(0 - 1 <= 0 + 0 || 0 + 1 <= 0 - 1);    // true

@@ -1,0 +1,19 @@
+/* comments.l3: test that all three kinds of comments work
+ * If they do, this program should print nothing :)
+[[BEGIN TEST CASES]]
+Interaction: <<{{}}>>
+[[END TEST CASES]]
+*/
+
+/*
+    print("Block comment");
+    print("(shouldn't print");
+*/
+
+// print("Line comment");
+// print("(This shouldn't print either!")");
+
+/// print("Assembly comment");
+/// print("(This should also not print, but should appear in the generated assembly file)");
+
+/* // /// print("Nested comments (shouldn't print)"); */

@@ -1,0 +1,46 @@
+/* brownies.l3: program that computes how many brownies can be cut in various sizes
+[[BEGIN TEST CASES]]
+Interaction: <<=== Pan dimensions ===
+width> {{10}}
+height> {{10}}
+Pan area: 100.0
+=== Brownie dimensions ===
+width> {{1}}
+height> {{1}}
+Brownie area: 1.0
+You can cut out a grid of 10.0 by 10.0 brownies (100.0 brownies total).
+This wastes a total brownie area of 0.0.>>
+--
+Interaction: <<=== Pan dimensions ===
+width> {{8}}
+height> {{14}}
+Pan area: 112.0
+=== Brownie dimensions ===
+width> {{3}}
+height> {{3}}
+Brownie area: 9.0
+You can cut out a grid of 2.0 by 4.0 brownies (8.0 brownies total).
+This wastes a total brownie area of 40.0.>>
+[[END TEST CASES]]
+*/
+
+print("=== Pan dimensions ===");
+double pw = input("width> ");
+double pl = input("height> ");
+
+double pA = pw * pl;
+print("Pan area: ", pA);
+
+print("=== Brownie dimensions ===");
+double bw = input("width> ");
+double bl = input("height> ");
+
+double bA = bw * bl;
+print("Brownie area: ", bA);
+
+double nw = pw / bw - (pw / bw) % 1.0;
+double nl = pl / bl - (pl / bl) % 1.0;
+print("You can cut out a grid of ", nw, " by ", nl, " brownies (", nw * nl, " brownies total).");
+
+double waste = pA - (bA * nw * nl);
+print("This wastes a total brownie area of ", waste, ".");

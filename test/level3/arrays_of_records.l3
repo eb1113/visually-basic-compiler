@@ -1,0 +1,29 @@
+/* arrays_of_records.l3: test arrays of records
+[[BEGIN TEST CASES]]
+Output: <<0
+99
+99,150
+99,150,-405,3180,-21105
+0.0
+99.0
+99.0,150.0
+99.0,150.0,-405.0,3180.0,-21105.0
+null
+99
+99,150
+99,150,99150,15099150,9915015099150>>
+[[END TEST CASES]]
+*/
+
+record Point(int x, int y) {}
+
+Point[] p = new Point[5];
+p[0] = new Point(1, 4);
+p[1] = new Point(5, 16);
+p[2] = new Point(8, 8);
+p[3] = new Point(-10, -10);
+p[4] = new Point(-4, 5);
+
+for (int i = 0; i < p.length; i++) {
+    print("p[", i, "] = ", p[i]);
+}

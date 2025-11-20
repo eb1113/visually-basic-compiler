@@ -1,0 +1,13 @@
+/* sqrt.l3: tests of the sqrt() function
+[[BEGIN TEST CASES]]
+Output: <<1.0
+2.0
+1.224744871391589
+1.3592715767717234>>
+[[END TEST CASES]]
+*/
+
+print(Math.sqrt(1.0));
+print(Math.sqrt(4.0));
+print(Math.sqrt(1.5));
+print(Math.sqrt(Math.sqrt(Math.sqrt(Math.sqrt(135.8)))));

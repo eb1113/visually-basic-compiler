@@ -1,0 +1,25 @@
+/* ints.l3: operations on int values and int variables
+[[BEGIN TEST CASES]]
+Output: <<5
+104
+105
+495
+0
+-20
+-1
+4>>
+[[END TEST CASES]]
+*/
+
+int p = 5;
+int q = 99;
+int r = -100;
+
+print(p);       // 5
+print(p + q);   // 104
+print(p - r);   // 105
+print(p * q);   // 495
+print(p / r);   // 0
+print(r / p);   // -20
+print(r / q);   // -1
+print(q % p);   // 4

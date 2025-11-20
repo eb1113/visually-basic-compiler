@@ -1,0 +1,25 @@
+/* doubles.l3: operations on double values and double variables
+[[BEGIN TEST CASES]]
+Output: <<5.0
+104.0
+105.0
+495.0
+-0.05
+-20.0
+-1.0101010101010102
+4.0>>
+[[END TEST CASES]]
+*/
+
+double p = 5;
+double q = 99;
+double r = -100;
+
+print(p);       // 5.0
+print(p + q);   // 104.0
+print(p - r);   // 105.0
+print(p * q);   // 495.0
+print(p / r);   // -0.05
+print(r / p);   // -20.0
+print(r / q);   // -1.0101010101010102
+print(q % p);   // 4.0

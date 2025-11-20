@@ -1,0 +1,44 @@
+/* while.l3: simple while loops
+[[BEGIN TEST CASES]]
+Interaction: <<0
+1
+2
+3
+4
+1
+2
+3
+4
+5
+{{duck}}
+duck
+{{duck}}
+duck
+{{duck}}
+duck
+{{cheese}}
+cheese
+GOOSE!>>
+[[END TEST CASES]]
+*/
+
+// 0 .. 4
+int x = 0;
+while (x < 5) {
+    print(x);
+    x = x + 1;
+}
+
+// 1 .. 5
+int y = 0;
+while (y < 5) {
+    y = y + 1;
+    print(y);
+}
+
+string word = "duck";
+while (word == "duck") {
+    word = input("");
+    print(word);
+}
+print("GOOSE!");

@@ -1,0 +1,53 @@
+/* increments.l3: test that increments work with various kinds of lvalues
+[[BEGIN TEST CASES]]
+Output: <<0
+2
+3
+3
+4,4
+15
+17
+18
+19
+19
+21>>
+[[END TEST CASES]]
+*/
+
+record Badger(string name, int age) {
+    void ageUp() {
+        age++;
+    }
+
+    void ageUp2() {
+        this.age++;
+    }
+}
+
+int[] numbers = new int[10];
+print(numbers[3]++);        // 0
+print(++numbers[3]);        // 2
+int x = 2;
+/// ++numbers[++x]
+print(++numbers[++x]);      // 3
+/// numbers[x++]++
+print(numbers[x++]++);      // 3
+print(x, ",", numbers[3]);  // 4,4
+
+Badger nellie = new Badger("Nellie", 15);
+print(nellie.age++);        // 15
+print(++nellie.age);        // 17
+nellie.ageUp();
+print(nellie.age);          // 18
+nellie.ageUp2();
+print(nellie.age);          // 19
+
+Badger[] getBadgerArray() {
+    Badger[] cete = new Badger[5];
+    cete[0] = nellie;
+    cete[1] = nellie;
+    return cete;
+}
+
+print(getBadgerArray()[1].age++);   // 19
+print(++getBadgerArray()[1].age);   // 21

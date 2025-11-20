@@ -1,0 +1,26 @@
+/* inputs.l3: inputs of all three types
+[[BEGIN TEST CASES]]
+Interaction: <<Enter a string: {{Käse}}
+s = Käse
+Enter an int: {{17}}
+i = 17
+Enter a double: {{5}}
+x = 5.0>>
+--
+Interaction: <<Enter a string: {{pneumonoultramicroscopicsilicovolcanoconiosis}}
+s = pneumonoultramicroscopicsilicovolcanoconiosis
+Enter an int: {{-22929456}}
+i = -22929456
+Enter a double: {{3.141592653}}
+x = 3.141592653>>
+[[END TEST CASES]]
+*/
+
+string s = input("Enter a string: ");
+print("s = ", s);
+
+int i = input("Enter an int: ");
+print("i = ", i);
+
+double x = input("Enter a double: ");
+print("x = ", x);

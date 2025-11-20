@@ -1,0 +1,43 @@
+/* functions.l3: functions and parameters
+[[BEGIN TEST CASES]]
+Output: <<void_no_parameters()
+int_no_parameters()
+123
+void_int_parameters(1, 4, 9)
+int_int_parameters(1, 4, 9)
+36
+complex_function(58, 1.2, badger badger)
+69.6>>
+[[END TEST CASES]]
+*/
+
+void void_no_parameters() {
+    print("void_no_parameters()");
+}
+
+int int_no_parameters() {
+    print("int_no_parameters()");
+    return 123;
+}
+
+void void_int_parameters(int a, int b, int c) {
+    print("void_int_parameters(", a, ", ", b, ", ", c, ")");
+    return;
+    print("this line should never be printed");
+}
+
+int int_int_parameters(int a, int b, int c) {
+    print("int_int_parameters(", a, ", ", b, ", ", c, ")");
+    return a * b * c;
+}
+
+double complex_function(int x, double y, string s) {
+    print("complex_function(", x, ", ", y, ", ", s, ")");
+    return y * x;
+}
+
+void_no_parameters();
+print(int_no_parameters());
+void_int_parameters(1, 4, 9);
+print(int_int_parameters(1, 4, 9));
+print(complex_function(58, 1.2, "badger badger"));

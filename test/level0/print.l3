@@ -1,0 +1,16 @@
+/* print.l3: basic printing
+[[BEGIN TEST CASES]]
+Output: <<
+Hello, compiler world!
+42.0
+There are 4.0 lights.>>
+[[END TEST CASES]]
+*/
+
+print();
+
+print("Hello, compiler world!");
+
+print(42.0);
+
+print("There are ", 4.0, " lights.");

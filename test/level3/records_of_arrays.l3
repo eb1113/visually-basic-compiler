@@ -1,0 +1,97 @@
+/* records_of_arrays.l3: test records containing arrays
+[[BEGIN TEST CASES]]
+Interaction: <<Enter a number (or -1 to stop): {{-1}}
+You entered 0 numbers:
+[]
+Their sum is 0.0.
+Their average is NaN.
+The array capacity is 3.>>
+--
+Interaction: <<Enter a number (or -1 to stop): {{1.52}}
+Enter a number (or -1 to stop): {{87.384}}
+Enter a number (or -1 to stop): {{32.44}}
+Enter a number (or -1 to stop): {{-1}}
+You entered 3 numbers:
+[1.52,87.384,32.44]
+Their sum is 121.344.
+Their average is 40.448.
+The array capacity is 3.>>
+--
+Interaction: <<Enter a number (or -1 to stop): {{1}}
+Enter a number (or -1 to stop): {{2}}
+Enter a number (or -1 to stop): {{3}}
+Enter a number (or -1 to stop): {{4}}
+Enter a number (or -1 to stop): {{5}}
+Enter a number (or -1 to stop): {{6}}
+Enter a number (or -1 to stop): {{7}}
+Enter a number (or -1 to stop): {{8}}
+Enter a number (or -1 to stop): {{9}}
+Enter a number (or -1 to stop): {{10}}
+Enter a number (or -1 to stop): {{-1}}
+You entered 10 numbers:
+[1.0,2.0,3.0,4.0,5.0,6.0,7.0,8.0,9.0,10.0]
+Their sum is 55.0.
+Their average is 5.5.
+The array capacity is 12.>>
+[[END TEST CASES]]
+*/
+
+record Data(double[] data, int count) {
+
+    void add(double d) {
+        if (count == data.length) {
+            double[] data2 = new double[data.length * 2];
+            for (int i = 0; i < data.length; i++)
+                data2[i] = data[i];
+            this.data = data2;
+        }
+
+        data[count++] = d;
+    }
+
+    double sum() {
+        double sum = 0;
+        for (int i = 0; i < count; i++)
+            sum = sum + data[i];
+        return sum;
+    }
+
+    double average() {
+        return sum() / count;
+    }
+
+    void clear() {
+        count = 0;
+    }
+
+    string toString() {
+        string s = "[";
+        for (int i = 0; i < count; i++) {
+            s = s + data[i];
+            if (i + 1 < count)
+                s = s + ",";
+        }
+        s = s + "]";
+        return s;
+    }
+}
+
+Data makeData() {
+    return new Data(new double[3], 0);
+}
+
+Data data = makeData();
+boolean continue = true;
+while (continue) {
+    double n = input("Enter a number (or -1 to stop): ");
+    if (n >= 0)
+        data.add(n);
+    else
+        continue = false;
+}
+
+print("You entered ", data.count, " numbers:");
+print(data);
+print("Their sum is ", data.sum(), ".");
+print("Their average is ", data.average(), ".");
+print("The array capacity is ", data.data.length, ".");

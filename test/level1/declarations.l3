@@ -1,0 +1,19 @@
+/* declarations.l3: declarations and prints of various types
+[[BEGIN TEST CASES]]
+Output: <<i = -14
+i = 126
+x = 1.9
+how a mosquito operates>>
+[[END TEST CASES]]
+*/
+
+int i = -14;
+print("i = ", i);
+i = 126;
+print("i = ", i);
+
+double x = 1.9;
+print("x = ", x);
+
+string s = "how a mosquito operates";
+print(s);

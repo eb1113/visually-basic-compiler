@@ -1,0 +1,53 @@
+/* increments.l3: increment (++) and decrement (--) operators)
+[[BEGIN TEST CASES]]
+Output: <<10
+11
+11
+11
+3.5
+4.5
+4.5
+4.5
+10
+9
+9
+9
+3.5
+2.5
+2.5
+2.5>>
+[[END TEST CASES]]
+*/
+
+int i = 10;
+print(i++);     // 10
+print(i);       // 11
+
+int j = 10;
+print(++j);     // 11
+print(j);       // 11
+
+double x = 3.5;
+print(x++);     // 3.5
+print(x);       // 4.5
+
+double y = 3.5;
+print(++y);     // 4.5
+print(y);       // 4.5
+
+int k = 10;
+print(k--);     // 10
+print(k);       // 9
+
+int l = 10;
+print(--l);     // 9
+print(l);       // 9
+
+double z = 3.5;
+print(z--);     // 3.5
+print(z);       // 2.5
+
+double w = 3.5;
+print(--w);     // 2.5
+print(w);       // 2.5
+

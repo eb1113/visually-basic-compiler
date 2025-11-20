@@ -1,0 +1,61 @@
+/* arrays_basics.l3: array creation and subscripting
+[[BEGIN TEST CASES]]
+Output: <<0
+99
+99,150
+99,150,-405,3180,-21105
+0.0
+99.0
+99.0,150.0
+99.0,150.0,-405.0,3180.0,-21105.0
+null
+99
+99,150
+99,150,99150,15099150,9915015099150>>
+[[END TEST CASES]]
+*/
+
+int[] ints = new int[5];
+print(ints[0]);                 // 0
+ints[0] = 99;
+print(ints[0]);                 // 99
+ints[1] = 150;
+print(ints[0], ",", ints[1]);   // 99150
+ints[2] = 5 * ints[0] - 6 * ints[1];
+ints[3] = 5 * ints[1] - 6 * ints[2];
+ints[4] = 5 * ints[2] - 6 * ints[3];
+print(ints[0], ",",
+    ints[1], ",",
+    ints[2], ",",
+    ints[3], ",",
+    ints[4]);                   // 99,150,-405,3180,-21105
+
+double[] doubles = new double[5];
+print(doubles[0]);                  // 0.0
+doubles[0] = 99;
+print(doubles[0]);                  // 99.0
+doubles[1] = 150;
+print(doubles[0], ",", doubles[1]); // 99.0,150.0
+doubles[2] = 5 * doubles[0] - 6 * doubles[1];
+doubles[3] = 5 * doubles[1] - 6 * doubles[2];
+doubles[4] = 5 * doubles[2] - 6 * doubles[3];
+print(doubles[0], ",",
+    doubles[1], ",",
+    doubles[2], ",",
+    doubles[3], ",",
+    doubles[4]);                    // 99.0,150.0,-405.0,3180.0,-21105.0
+
+string[] strings = new string[5];
+print(strings[0]);                  // null
+strings[0] = "99";
+print(strings[0]);                  // 99
+strings[1] = "150";
+print(strings[0], ",", strings[1]); // 99,150
+strings[2] = strings[0] + strings[1];
+strings[3] = strings[1] + strings[2];
+strings[4] = strings[2] + strings[3];
+print(strings[0], ",",
+    strings[1], ",",
+    strings[2], ",",
+    strings[3], ",",
+    strings[4]);                    // 99,150,99150,15099150,9915015099150

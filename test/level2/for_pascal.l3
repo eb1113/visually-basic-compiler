@@ -1,0 +1,51 @@
+/* for_pascal.l3: for statements, Pascal style
+    **if you are using "Java-style" for loops, you can ignore this file**
+[[BEGIN TEST CASES]]
+Output: <<0
+1
+2
+3
+4
+1
+101
+201
+301
+401
+3
+3
+2
+2
+1
+1
+0
+0
+-1
+-1>>
+[[END TEST CASES]]
+*/
+
+// 0 .. 4
+for (int i = 0 to 4 by 1) {
+    print(i);
+}
+
+// 1, 101, 201, 301, 401
+for (int i = 1 to 500 by 100) {
+    print(i);
+}
+
+// 3, 3, 2, 2, 1, 1, 0, 0, -1, -1
+for (int i = 3 to -1 by -1) {
+    print(i);
+    print(i);
+}
+
+// should not print anything
+for (int i = 0 to 5 by -1) {
+    print(i);
+}
+
+// also should not print anything
+for (int i = 5 to 0 by 1) {
+    print(i);
+}

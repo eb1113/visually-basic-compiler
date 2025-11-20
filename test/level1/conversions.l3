@@ -1,0 +1,41 @@
+/* conversions.l3: implicit conversions
+[[BEGIN TEST CASES]]
+Output: <<1234.0
+12345
+3.14159
+38782.92855
+0
+0.4
+0.4
+99 Luftballons
+99 Luftballons
+Catch-22
+Catch-22
+CMPT 355>>
+[[END TEST CASES]]
+*/
+
+double x;
+string s;
+
+x = 1234;
+print(x);       // 1234.0
+
+s = 012345;
+print(s);       // 12345
+
+s = 3.14159;
+print(s);       // 3.14159
+
+s = 012345 * 3.14159;
+print(s);       // 38782.92855
+
+print(2 / 5);   // 0
+print(2.0 / 5); // 0.4
+print(2 / 5.0); // 0.4
+
+print(99 + " Luftballons");         // 99 Luftballons
+print(98 + 1 + " Luftballons");     // 99 Luftballons
+print("Catch-" + 22);               // Catch-22
+print("Catch-" + 2 + 2);            // Catch-22
+print("CMPT " + (3 + "5" + 5));     // CMPT 355

@@ -1,0 +1,94 @@
+/* relational.l3: relational operators
+[[BEGIN TEST CASES]]
+Output: <<Ints: 0 and 0
+true
+false
+false
+true
+false
+true
+Ints: 0 and 1
+false
+true
+true
+false
+false
+true
+Doubles: 0 and 0
+true
+false
+false
+true
+false
+true
+Doubles: 0 and 1
+false
+true
+true
+false
+false
+true
+Strings: 'a' and 'a'
+true
+false
+false
+true
+false
+true
+Strings: 'a' and 'b'
+false
+true
+true
+false
+false
+true>>
+[[END TEST CASES]]
+*/
+
+print("Ints: 0 and 0");
+print(0 == 0);      // true
+print(0 != 0);      // false
+print(0 < 0);       // false
+print(0 >= 0);      // true
+print(0 > 0);       // false
+print(0 <= 0);      // true
+
+print("Ints: 0 and 1");
+print(0 == 1);      // false
+print(0 != 1);      // true
+print(0 < 1);       // true
+print(0 >= 1);      // false
+print(0 > 1);       // false
+print(0 <= 1);      // true
+
+print("Doubles: 0 and 0");
+print(0.0 == 0.0);      // true
+print(0.0 != 0.0);      // false
+print(0.0 < 0.0);       // false
+print(0.0 >= 0.0);      // true
+print(0.0 > 0.0);       // false
+print(0.0 <= 0.0);      // true
+
+print("Doubles: 0 and 1");
+print(0.0 == 1.0);      // false
+print(0.0 != 1.0);      // true
+print(0.0 < 1.0);       // true
+print(0.0 >= 1.0);      // false
+print(0.0 > 1.0);       // false
+print(0.0 <= 1.0);      // true
+
+print("Strings: 'a' and 'a'");
+print("a" == "a");      // true
+print("a" != "a");      // false
+print("a" < "a");       // false
+print("a" >= "a");      // true
+print("a" > "a");       // false
+print("a" <= "a");      // true
+
+print("Strings: 'a' and 'b'");
+print("a" == "b");      // false
+print("a" != "b");      // true
+print("a" < "b");       // true
+print("a" >= "b");      // false
+print("a" > "b");       // false
+print("a" <= "b");      // true

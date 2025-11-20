@@ -1,0 +1,56 @@
+/* pi_approx.l3: a function that uses a Monte Carlo method to approximate pi
+
+Fun fact: by the Central Limit Theorem, this method of approximating pi
+should have accuracy bounded by sqrt(number of trials). So to get one
+more digit of accuracy, you need to do about 100x as many trials!
+(Not a great way to get more than the first 3-4 digits...)
+
+The test cases in this file demonstrate this: 100 trials gets you one digit
+of accuracy (3), 10000 gets you two (3.1), 1000000 gets you three (3.14).
+
+[[BEGIN TEST CASES]]
+Interaction: <<How many iterations? {{100}}
+After 100 iterations, pi is about 3.4.>>
+--
+Interaction: <<How many iterations? {{10000}}
+After 10000 iterations, pi is about 3.1552.>>
+--
+Interaction: <<How many iterations? {{1000000}}
+After 1000000 iterations, pi is about 3.144212.>>
+[[END TEST CASES]]
+*/
+
+// I got this from a random number generator so it's, like, *super* random
+int _seed = 484039;
+
+// Believe it or not, this is how many pseudorandom number generators work!
+// This one uses the same parameters as in standard gcc:
+//   https://en.wikipedia.org/wiki/Linear_congruential_generator
+int rand(int max) {
+    _seed = 1103515245 * _seed + 12345;
+    return _seed % max;
+}
+
+double randDouble() {
+    return rand(1048576) / 1048576.0;
+}
+
+// generate random points in (0, 1)x(0, 1) and count how many fall within
+// the unit circle
+int runTrials(int numTrials) {
+    int count = 0;
+    for (int i = 0; i < numTrials; i++) {
+    // for (int i = 1 to numTrials by 1) {
+        double x = randDouble();
+        double y = randDouble();
+        if (x * x + y * y < 1)
+            ++count;
+    }
+
+    return count;
+}
+
+int trials = input("How many iterations? ");
+int count = runTrials(trials);
+double piApprox = 4.0 * count / trials;
+print("After ", trials, " iterations, pi is about ", piApprox, ".");
