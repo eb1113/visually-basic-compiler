@@ -2,7 +2,7 @@ package edu.westminsteru.cmpt355.level3.ast;
 
 import java.util.List;
 
-/** AST node type representing the program as a whole: the root AST node */
+/** AST node oldType representing the program as a whole: the root AST node */
 public record AstProgram(List<AstFunctionDeclaration> funcs, List<AstStatement> stmts) implements AstNode {
 
     @Override

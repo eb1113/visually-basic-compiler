@@ -8,7 +8,7 @@ import edu.westminsteru.cmpt355.level3.lang.Type;
  */
 public sealed interface IrExpression extends IrNode
         permits IrBinary, IrUnary, IrFunctionCall, IrInput,
-        IrSqrt, IrToString, IrVariable, IrWiden, IrInt, IrDouble, IrString, IrBoolean, IrIncrement, IrCast {
+        IrToString, IrVariable, IrWiden, IrInt, IrDouble, IrString, IrBoolean, IrIncrement, IrCast {
 
     /** Returns the data type of this expression */
     Type type();

@@ -1,11 +1,11 @@
 package edu.westminsteru.cmpt355.level3.ir;
 
-import edu.westminsteru.cmpt355.level3.lang.Type;
+import edu.westminsteru.cmpt355.level3.lang.BuiltInType;
 
 public record IrString(String value) implements IrExpression {
     @Override
-    public Type type() {
-        return Type.STRING;
+    public BuiltInType type() {
+        return BuiltInType.STRING;
     }
 
     @Override

@@ -2,6 +2,7 @@ package edu.westminsteru.cmpt355.level3.ir;
 
 import edu.westminsteru.cmpt355.level3.InternalCompilerException;
 import edu.westminsteru.cmpt355.level3.ast.IncrementOp;
+import edu.westminsteru.cmpt355.level3.lang.BuiltInType;
 import edu.westminsteru.cmpt355.level3.lang.Type;
 
 public record IrIncrement(IncrementOp op, IrVariable variable, boolean isPrefix) implements IrExpression {
@@ -9,7 +10,7 @@ public record IrIncrement(IncrementOp op, IrVariable variable, boolean isPrefix)
     public Type type() {
         // Increment/decrement only works on int and double variables
         Type varType = variable.type();
-        if (varType != Type.INT && varType != Type.DOUBLE) {
+        if (varType != BuiltInType.INT && varType != BuiltInType.DOUBLE) {
             throw new InternalCompilerException("Increment/decrement only works on int and double variables, got: " + varType);
         }
         return varType;

@@ -1,39 +1,60 @@
 package edu.westminsteru.cmpt355.level3.lang;
 
-/** Enum of all the data types in the language */
-public enum Type implements ReturnType {
+public sealed interface Type extends ReturnType
+    permits ScalarType, ArrayType {
 
-    INT, DOUBLE, STRING, BOOLEAN, VOID;
+    /**
+     * JVM-style descriptor, e.g. "I", "D", "Ljava/lang/String;", "[I", "Lpkg/Point;"
+     */
+    String getDescriptor();
 
-    // Returns the JVM-style type descriptor for this type
-    public String getDescriptor() {
-        return switch (this) {
-            case INT -> "I";
-            case DOUBLE -> "D";
-            case STRING -> "Ljava/lang/String;";
-            case BOOLEAN -> "Z";
-            case VOID -> "V";
-        };
+    /**
+     * JVM "slot" size:
+     *  - 1 for int, boolean, reference types
+     *  - 2 for double
+     *  - 0 for void
+     */
+    int size();
+
+    default boolean isNumeric() {
+        return false;
+    }
+    default boolean isBoolean() {
+        return false;
+    }
+    default boolean isVoid() {
+        return false;
     }
 
-    public static Type fromString(String s) {
-        return switch (s) {
-            case "int", "INT" -> Type.INT;
-            case "double", "DOUBLE" -> Type.DOUBLE;
-            case "string", "STRING" -> Type.STRING;
-            case "boolean", "BOOLEAN" -> Type.BOOLEAN;
-            case "void", "VOID" -> Type.VOID;
-            default -> throw new IllegalArgumentException("Unknown type: " + s);
-        };
+    /**
+     * @return true if this type is stored as a reference on JVM stack
+     * (e.g. arrays/records; String in BuiltInType but still a reference)
+     */
+    default boolean isReference() {
+        // ArrayType always a reference
+        return this instanceof ArrayType;
     }
 
-    public int size() {
-        return switch (this) {
-            case INT -> 1;
-            case DOUBLE -> 2;
-            case STRING -> 1;
-            case BOOLEAN -> 1;
-            case VOID -> 0;
-        };
+    /**
+     * Converts a BuiltInType string to a Type.
+     * For use during parsing when we know it's a built-in type.
+     */
+    static Type fromBuiltInString(String s) {
+        BuiltInType builtIn = BuiltInType.fromString(s);
+        return builtIn;
+    }
+
+    /**
+     * Creates an ArrayType with the given number of dimensions and base type.
+     * @param dimensions number of array dimensions
+     * @param baseType the base element type
+     * @return the ArrayType (nested if dimensions > 1)
+     */
+    static Type createArrayType(int dimensions, Type baseType) {
+        Type result = baseType;
+        for (int i = 0; i < dimensions; i++) {
+            result = new ArrayType(result);
+        }
+        return result;
     }
 }

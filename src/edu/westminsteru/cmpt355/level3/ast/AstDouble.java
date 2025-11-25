@@ -1,5 +1,9 @@
 package edu.westminsteru.cmpt355.level3.ast;
 
+/**
+ * Represents a double literal in the AST.
+ * @param value The double value.
+ */
 public record AstDouble(double value) implements AstExpression {
     @Override
     public Iterable<? extends AstExpression> children() {

@@ -3,9 +3,7 @@ package edu.westminsteru.cmpt355.level3;
 import edu.westminsteru.cmpt355.level3.ast.BinaryOp;
 import edu.westminsteru.cmpt355.level3.ast.IncrementOp;
 import edu.westminsteru.cmpt355.level3.ir.*;
-import edu.westminsteru.cmpt355.level3.lang.LocalVariable;
-import edu.westminsteru.cmpt355.level3.lang.ReturnType;
-import edu.westminsteru.cmpt355.level3.lang.Type;
+import edu.westminsteru.cmpt355.level3.lang.*;
 
 import java.io.PrintWriter;
 import java.util.HashMap;
@@ -91,40 +89,57 @@ public class CodeGenerator {
 
     /** Emit load instruction for a local variable */
     private void emitLoad(Type type, int index) {
-        switch (type) {
-            case INT, BOOLEAN -> out.printf("    iload %d%n", index);
-            case DOUBLE -> out.printf("    dload %d%n", index);
-            case STRING -> out.printf("    aload %d%n", index);
-            default -> throw new IllegalArgumentException("Cannot load local variable of type: " + type);
+        if (type instanceof BuiltInType builtIn) {
+            switch (builtIn) {
+                case INT, BOOLEAN -> out.printf("    iload %d%n", index);
+                case DOUBLE -> out.printf("    dload %d%n", index);
+                case STRING -> out.printf("    aload %d%n", index);
+                default -> throw new IllegalArgumentException("Cannot load local variable of type: " + type);
+            }
+        } else {
+            // ArrayType or RecordType - use aload
+            out.printf("    aload %d%n", index);
         }
     }
 
     /** Emit store instruction for a local variable */
     private void emitStore(Type type, int index) {
-        switch (type) {
-            case INT, BOOLEAN -> out.printf("    istore %d%n", index);
-            case DOUBLE -> out.printf("    dstore %d%n", index);
-            case STRING -> out.printf("    astore %d%n", index);
-            default -> throw new IllegalArgumentException("Cannot store local variable of type: " + type);
+        if (type instanceof BuiltInType builtIn) {
+            switch (builtIn) {
+                case INT, BOOLEAN -> out.printf("    istore %d%n", index);
+                case DOUBLE -> out.printf("    dstore %d%n", index);
+                case STRING -> out.printf("    astore %d%n", index);
+                default -> throw new IllegalArgumentException("Cannot store local variable of type: " + type);
+            }
+        } else {
+            // ArrayType or RecordType - use astore
+            out.printf("    astore %d%n", index);
         }
     }
 
     /** Emit return instruction based on type */
-    private void emitReturn(Type type) {
-        switch (type) {
-            case INT, BOOLEAN -> out.println("    ireturn");
-            case DOUBLE -> out.println("    dreturn");
-            case STRING -> out.println("    areturn");
-            case VOID -> out.println("    return");
-            default -> throw new IllegalArgumentException("Cannot return type: " + type);
+    private void emitReturn(ReturnType returnType) {
+        if (returnType instanceof BuiltInType builtIn) {
+            switch (builtIn) {
+                case INT, BOOLEAN -> out.println("    ireturn");
+                case DOUBLE -> out.println("    dreturn");
+                case STRING -> out.println("    areturn");
+                case VOID -> out.println("    return");
+            }
+        } else if (returnType instanceof ArrayType || returnType instanceof RecordType) {
+            out.println("    areturn");
+        } else if (returnType == ReturnType.VOID) {
+            out.println("    return");
+        } else {
+            throw new IllegalArgumentException("Cannot return type: " + returnType);
         }
     }
 
-    /** Emit pop instruction based on type */
-    private void emitPop(Type type) {
-        if (type == Type.DOUBLE) {
+    /** Emit pop instruction based on oldType */
+    private void emitPop(Type oldType) {
+        if (oldType == BuiltInType.DOUBLE) {
             out.println("    pop2");
-        } else if (type != Type.VOID) {
+        } else if (oldType != BuiltInType.VOID) {
             out.println("    pop");
         }
         // Void expressions leave nothing on stack, so no pop needed
@@ -156,23 +171,33 @@ public class CodeGenerator {
 
     /** Emit println for a single argument of given type */
     private void emitPrintOne(Type type) {
-        switch (type) {
-            case INT -> out.println("    invokevirtual java/io/PrintStream println (I)V");
-            case DOUBLE -> out.println("    invokevirtual java/io/PrintStream println (D)V");
-            case BOOLEAN -> out.println("    invokevirtual java/io/PrintStream println (Z)V");
-            case STRING -> out.println("    invokevirtual java/io/PrintStream println (Ljava/lang/String;)V");
-            default -> throw new IllegalArgumentException("Cannot println type: " + type);
+        if (type instanceof BuiltInType builtIn) {
+            switch (builtIn) {
+                case INT -> out.println("    invokevirtual java/io/PrintStream println (I)V");
+                case DOUBLE -> out.println("    invokevirtual java/io/PrintStream println (D)V");
+                case BOOLEAN -> out.println("    invokevirtual java/io/PrintStream println (Z)V");
+                case STRING -> out.println("    invokevirtual java/io/PrintStream println (Ljava/lang/String;)V");
+                default -> throw new IllegalArgumentException("Cannot println type: " + type);
+            }
+        } else {
+            // ArrayType or RecordType - use Object println
+            out.println("    invokevirtual java/io/PrintStream println (Ljava/lang/Object;)V");
         }
     }
 
     /** Emit toString conversion for given type (assumes value is already on stack) */
     private void emitToString(Type type) {
-        switch (type) {
-            case INT -> out.println("    invokestatic java/lang/Integer toString (I)Ljava/lang/String;");
-            case DOUBLE -> out.println("    invokestatic java/lang/Double toString (D)Ljava/lang/String;");
-            case BOOLEAN -> out.println("    invokestatic java/lang/Boolean toString (Z)Ljava/lang/String;");
-            case STRING -> { /* Already a string, no conversion needed */ }
-            default -> throw new IllegalArgumentException("Cannot convert " + type + " to string");
+        if (type instanceof BuiltInType builtIn) {
+            switch (builtIn) {
+                case INT -> out.println("    invokestatic java/lang/Integer toString (I)Ljava/lang/String;");
+                case DOUBLE -> out.println("    invokestatic java/lang/Double toString (D)Ljava/lang/String;");
+                case BOOLEAN -> out.println("    invokestatic java/lang/Boolean toString (Z)Ljava/lang/String;");
+                case STRING -> { /* Already a string, no conversion needed */ }
+                default -> throw new IllegalArgumentException("Cannot convert " + type + " to string");
+            }
+        } else {
+            // ArrayType or RecordType - use Object.toString()
+            out.println("    invokevirtual java/lang/Object toString ()Ljava/lang/String;");
         }
     }
 
@@ -373,17 +398,22 @@ public class CodeGenerator {
         } else {
             // Initialize with default value based on type
             Type varType = decl.variable().type();
-            if (varType == Type.VOID) {
+            if (varType == BuiltInType.VOID) {
                 throw new IllegalArgumentException("Cannot declare a variable of type void");
             }
             
             // Emit default value
-            switch (varType) {
-                case INT -> emitIntConst(0);
-                case BOOLEAN -> emitBool(false);
-                case DOUBLE -> emitDoubleConst(0.0);
-                case STRING -> emitString("\"\"");
-                default -> throw new IllegalArgumentException("Cannot declare a variable of type: " + varType);
+            if (varType instanceof BuiltInType builtIn) {
+                switch (builtIn) {
+                    case INT -> emitIntConst(0);
+                    case BOOLEAN -> emitBool(false);
+                    case DOUBLE -> emitDoubleConst(0.0);
+                    case STRING -> emitString("\"\"");
+                    default -> throw new IllegalArgumentException("Cannot declare a variable of type: " + varType);
+                }
+            } else {
+                // ArrayType or RecordType - emit null
+                out.println("    aconst_null");
             }
             
             // Store default value
@@ -415,7 +445,7 @@ public class CodeGenerator {
             generateExpression(ret.value().get());
             emitReturn(ret.value().get().type());
         } else {
-            emitReturn(Type.VOID);
+            emitReturn(BuiltInType.VOID);
         }
     }
 
@@ -460,11 +490,16 @@ public class CodeGenerator {
                 out.println("    invokevirtual java/io/PrintStream print (Ljava/lang/String;)V");
 
                 // Read the value, leaving it on the stack as an expression result
-                switch (input.type()) {
-                    case INT -> out.printf("    invokestatic %s readInt ()I\n", outClassName);
-                    case DOUBLE -> out.printf("    invokestatic %s readDouble ()D\n", outClassName);
-                    case STRING -> out.printf("    invokestatic %s readString ()Ljava/lang/String;\n", outClassName);
-                    default -> throw new IllegalArgumentException("Cannot input type: " + input.type());
+                Type inputType = input.type();
+                if (inputType instanceof BuiltInType builtIn) {
+                    switch (builtIn) {
+                        case INT -> out.printf("    invokestatic %s readInt ()I\n", outClassName);
+                        case DOUBLE -> out.printf("    invokestatic %s readDouble ()D\n", outClassName);
+                        case STRING -> out.printf("    invokestatic %s readString ()Ljava/lang/String;\n", outClassName);
+                        default -> throw new IllegalArgumentException("Cannot input type: " + inputType);
+                    }
+                } else {
+                    throw new IllegalArgumentException("Cannot input type: " + inputType);
                 }
             }
             case IrInt i -> {
@@ -494,10 +529,15 @@ public class CodeGenerator {
                 generateExpression(unary.expr());
                 switch (unary.op()) {
                     case NEGATE -> {
-                        switch (unary.expr().type()) {
-                            case INT -> out.printf("    ineg\n");
-                            case DOUBLE -> out.printf("    dneg\n");
-                            default -> throw new IllegalArgumentException("Cannot negate " + unary.expr().type());
+                        Type exprType = unary.expr().type();
+                        if (exprType instanceof BuiltInType builtIn) {
+                            switch (builtIn) {
+                                case INT -> out.printf("    ineg\n");
+                                case DOUBLE -> out.printf("    dneg\n");
+                                default -> throw new IllegalArgumentException("Cannot negate " + exprType);
+                            }
+                        } else {
+                            throw new IllegalArgumentException("Cannot negate " + exprType);
                         }
                     }
                     case NOT -> {
@@ -513,38 +553,63 @@ public class CodeGenerator {
                 generateExpression(binary.right());
                 switch (binary.op()) {
                     case ADD -> {
-                        switch (binary.left().type()) {
-                            case INT -> out.println("    iadd");
-                            case DOUBLE -> out.println("    dadd");
-                            default -> throw new IllegalArgumentException("Cannot add " + binary.left().type());
+                        Type leftType = binary.left().type();
+                        if (leftType instanceof BuiltInType builtIn) {
+                            switch (builtIn) {
+                                case INT -> out.println("    iadd");
+                                case DOUBLE -> out.println("    dadd");
+                                default -> throw new IllegalArgumentException("Cannot add " + leftType);
+                            }
+                        } else {
+                            throw new IllegalArgumentException("Cannot add " + leftType);
                         }
                     }
                     case SUB -> {
-                        switch (binary.left().type()) {
-                            case INT -> out.printf("    isub\n");
-                            case DOUBLE -> out.printf("    dsub\n");
-                            default -> throw new IllegalArgumentException("Cannot subtract " + binary.left().type());
+                        Type leftType = binary.left().type();
+                        if (leftType instanceof BuiltInType builtIn) {
+                            switch (builtIn) {
+                                case INT -> out.printf("    isub\n");
+                                case DOUBLE -> out.printf("    dsub\n");
+                                default -> throw new IllegalArgumentException("Cannot subtract " + leftType);
+                            }
+                        } else {
+                            throw new IllegalArgumentException("Cannot subtract " + leftType);
                         }
                     }
                     case MUL -> {
-                        switch (binary.left().type()) {
-                            case INT -> out.printf("    imul\n");
-                            case DOUBLE -> out.printf("    dmul\n");
-                            default -> throw new IllegalArgumentException("Cannot multiply " + binary.left().type());
+                        Type leftType = binary.left().type();
+                        if (leftType instanceof BuiltInType builtIn) {
+                            switch (builtIn) {
+                                case INT -> out.printf("    imul\n");
+                                case DOUBLE -> out.printf("    dmul\n");
+                                default -> throw new IllegalArgumentException("Cannot multiply " + leftType);
+                            }
+                        } else {
+                            throw new IllegalArgumentException("Cannot multiply " + leftType);
                         }
                     }
                     case DIV -> {
-                        switch (binary.left().type()) {
-                            case INT -> out.printf("    idiv\n");
-                            case DOUBLE -> out.printf("    ddiv\n");
-                            default -> throw new IllegalArgumentException("Cannot divide " + binary.left().type());
+                        Type leftType = binary.left().type();
+                        if (leftType instanceof BuiltInType builtIn) {
+                            switch (builtIn) {
+                                case INT -> out.printf("    idiv\n");
+                                case DOUBLE -> out.printf("    ddiv\n");
+                                default -> throw new IllegalArgumentException("Cannot divide " + leftType);
+                            }
+                        } else {
+                            throw new IllegalArgumentException("Cannot divide " + leftType);
                         }
                     }
                     case MOD -> {
-                        switch (binary.left().type()) {
-                            case INT -> out.printf("    irem\n");
-                            case DOUBLE -> out.printf("    drem\n");
-                            default -> throw new IllegalArgumentException("Cannot modulo " + binary.left().type());
+                        Type leftType = binary.left().type();
+                        if (leftType instanceof BuiltInType builtIn) {
+                            switch (builtIn) {
+                                case INT -> out.printf("    irem\n");
+                                case DOUBLE -> out.printf("    drem\n");
+                                default -> throw new IllegalArgumentException("Cannot modulo " + leftType);
+                            }
+                        } else {
+                            throw new IllegalArgumentException("Cannot modulo " + leftType);
                         }
                     }
                     case CONCAT -> {
@@ -562,10 +627,6 @@ public class CodeGenerator {
                         out.println("    ior");
                     }
                 }
-            }
-            case IrSqrt s -> {
-                generateExpression(s.expr());
-                out.printf("    invokestatic java/lang/Math sqrt (D)D\n");
             }
             case IrWiden w -> {
                 generateExpression(w.expr());
@@ -589,10 +650,14 @@ public class CodeGenerator {
                 // Load variable
                 if (inc.variable().variable() instanceof LocalVariable local) {
                     int index = local.index();
-                    switch (varType) {
-                        case INT -> out.printf("    iload %d\n", index);
-                        case DOUBLE -> out.printf("    dload %d\n", index);
-                        default -> throw new IllegalArgumentException("Cannot increment " + varType);
+                    if (varType instanceof BuiltInType builtIn) {
+                        switch (builtIn) {
+                            case INT -> out.printf("    iload %d\n", index);
+                            case DOUBLE -> out.printf("    dload %d\n", index);
+                            default -> throw new IllegalArgumentException("Cannot increment " + varType);
+                        }
+                    } else {
+                        throw new IllegalArgumentException("Cannot increment " + varType);
                     }
                 } else {
                     String descriptor = inc.variable().variable().type().getDescriptor();
@@ -602,18 +667,18 @@ public class CodeGenerator {
                 if (isPrefix) {
                     // Prefix: increment first, then use new value
                     if (inc.op() == IncrementOp.INCREMENT) {
-                        if (varType == Type.INT) {
+                        if (varType == BuiltInType.INT) {
                             out.println("    iconst_1");
                             out.println("    iadd");
-                        } else if (varType == Type.DOUBLE) {
+                        } else if (varType == BuiltInType.DOUBLE) {
                             out.println("    dconst_1");
                             out.println("    dadd");
                         }
                     } else { // DECREMENT
-                        if (varType == Type.INT) {
+                        if (varType == BuiltInType.INT) {
                             out.println("    iconst_1");
                             out.println("    isub");
-                        } else if (varType == Type.DOUBLE) {
+                        } else if (varType == BuiltInType.DOUBLE) {
                             out.println("    dconst_1");
                             out.println("    dsub");
                         }
@@ -621,39 +686,43 @@ public class CodeGenerator {
                     // Store back and leave incremented value on stack
                     if (inc.variable().variable() instanceof LocalVariable local) {
                         int index = local.index();
-                        switch (varType) {
-                            case INT -> out.printf("    dup\n    istore %d\n", index);
-                            case DOUBLE -> out.printf("    dup2\n    dstore %d\n", index);
-                            default -> throw new IllegalArgumentException("Cannot increment " + varType);
+                        if (varType instanceof BuiltInType builtIn) {
+                            switch (builtIn) {
+                                case INT -> out.printf("    dup\n    istore %d\n", index);
+                                case DOUBLE -> out.printf("    dup2\n    dstore %d\n", index);
+                                default -> throw new IllegalArgumentException("Cannot increment " + varType);
+                            }
+                        } else {
+                            throw new IllegalArgumentException("Cannot increment " + varType);
                         }
                     } else {
                         String descriptor = inc.variable().variable().type().getDescriptor();
-                        out.println("    dup" + (varType == Type.DOUBLE ? "2" : ""));
+                        out.println("    dup" + (varType == BuiltInType.DOUBLE ? "2" : ""));
                         out.printf("    putstatic %s %s %s\n", outClassName, inc.variable().variable().name(), descriptor);
                         // Incremented value remains on stack from dup
                     }
                 } else {
                     // Postfix: use old value, then increment
                     // Duplicate the original value first
-                    if (varType == Type.INT) {
+                    if (varType == BuiltInType.INT) {
                         out.println("    dup");
-                    } else if (varType == Type.DOUBLE) {
+                    } else if (varType == BuiltInType.DOUBLE) {
                         out.println("    dup2");
                     }
                     // Now increment
                     if (inc.op() == IncrementOp.INCREMENT) {
-                        if (varType == Type.INT) {
+                        if (varType == BuiltInType.INT) {
                             out.println("    iconst_1");
                             out.println("    iadd");
-                        } else if (varType == Type.DOUBLE) {
+                        } else if (varType == BuiltInType.DOUBLE) {
                             out.println("    dconst_1");
                             out.println("    dadd");
                         }
                     } else { // DECREMENT
-                        if (varType == Type.INT) {
+                        if (varType == BuiltInType.INT) {
                             out.println("    iconst_1");
                             out.println("    isub");
-                        } else if (varType == Type.DOUBLE) {
+                        } else if (varType == BuiltInType.DOUBLE) {
                             out.println("    dconst_1");
                             out.println("    dsub");
                         }
@@ -661,10 +730,14 @@ public class CodeGenerator {
                     // Store incremented value back
                     if (inc.variable().variable() instanceof LocalVariable local) {
                         int index = local.index();
-                        switch (varType) {
-                            case INT -> out.printf("    istore %d\n", index);
-                            case DOUBLE -> out.printf("    dstore %d\n", index);
-                            default -> throw new IllegalArgumentException("Cannot increment " + varType);
+                        if (varType instanceof BuiltInType builtIn) {
+                            switch (builtIn) {
+                                case INT -> out.printf("    istore %d\n", index);
+                                case DOUBLE -> out.printf("    dstore %d\n", index);
+                                default -> throw new IllegalArgumentException("Cannot increment " + varType);
+                            }
+                        } else {
+                            throw new IllegalArgumentException("Cannot increment " + varType);
                         }
                     } else {
                         String descriptor = inc.variable().variable().type().getDescriptor();
@@ -691,48 +764,49 @@ public class CodeGenerator {
             return;
         }
         
-        switch (targetType) {
-            case INT -> {
-                switch (sourceType) {
-                    case DOUBLE -> {
-                        // Double to int: truncate (d2i)
-                        out.println("    d2i");
+        if (targetType instanceof BuiltInType targetBuiltIn && sourceType instanceof BuiltInType sourceBuiltIn) {
+            switch (targetBuiltIn) {
+                case INT -> {
+                    switch (sourceBuiltIn) {
+                        case DOUBLE -> {
+                            // Double to int: truncate (d2i)
+                            out.println("    d2i");
+                        }
+                        case STRING -> {
+                            // String to int: use Integer.parseInt
+                            out.println("    invokestatic java/lang/Integer parseInt (Ljava/lang/String;)I");
+                        }
+                        case BOOLEAN -> {
+                            // Boolean to int: already 0 or 1, no conversion needed
+                            // (booleans are represented as ints)
+                        }
+                        default -> throw new IllegalArgumentException("Cannot cast " + sourceType + " to " + targetType);
                     }
-                    case STRING -> {
-                        // String to int: use Integer.parseInt
-                        out.println("    invokestatic java/lang/Integer parseInt (Ljava/lang/String;)I");
-                    }
-                    case BOOLEAN -> {
-                        // Boolean to int: already 0 or 1, no conversion needed
-                        // (booleans are represented as ints)
-                    }
-                    default -> throw new IllegalArgumentException("Cannot cast " + sourceType + " to " + targetType);
                 }
-            }
-            case DOUBLE -> {
-                switch (sourceType) {
-                    case INT -> {
-                        // Int to double: convert using i2d
-                        out.println("    i2d");
+                case DOUBLE -> {
+                    switch (sourceBuiltIn) {
+                        case INT -> {
+                            // Int to double: convert using i2d
+                            out.println("    i2d");
+                        }
+                        case STRING -> {
+                            // String to double: use Double.parseDouble
+                            out.println("    invokestatic java/lang/Double parseDouble (Ljava/lang/String;)D");
+                        }
+                        case BOOLEAN -> {
+                            // Boolean to double: convert 0/1 to 0.0/1.0
+                            out.println("    i2d"); // Convert int (0 or 1) to double
+                        }
+                        default -> throw new IllegalArgumentException("Cannot cast " + sourceType + " to " + targetType);
                     }
-                    case STRING -> {
-                        // String to double: use Double.parseDouble
-                        out.println("    invokestatic java/lang/Double parseDouble (Ljava/lang/String;)D");
-                    }
-                    case BOOLEAN -> {
-                        // Boolean to double: convert 0/1 to 0.0/1.0
-                        out.println("    i2d"); // Convert int (0 or 1) to double
-                    }
-                    default -> throw new IllegalArgumentException("Cannot cast " + sourceType + " to " + targetType);
                 }
-            }
-            case STRING -> {
-                // Any to string: convert using toString
-                emitToString(sourceType);
-            }
-            case BOOLEAN -> {
-                switch (sourceType) {
-                    case INT -> {
+                case STRING -> {
+                    // Any to string: convert using toString
+                    emitToString(sourceType);
+                }
+                case BOOLEAN -> {
+                    switch (sourceBuiltIn) {
+                        case INT -> {
                         // Int to boolean: non-zero -> true, zero -> false
                         // Compare with 0, push 1 if != 0, else 0
                         String trueLabel = newLabel();
@@ -772,10 +846,15 @@ public class CodeGenerator {
                         out.println("    iconst_1"); // Push 1 (true)
                         out.println(endLabel + ":");
                     }
-                    default -> throw new IllegalArgumentException("Cannot cast " + sourceType + " to " + targetType);
+                        default -> throw new IllegalArgumentException("Cannot cast " + sourceType + " to " + targetType);
+                    }
                 }
+                default -> throw new IllegalArgumentException("Cannot cast to type: " + targetType);
             }
-            default -> throw new IllegalArgumentException("Cannot cast to type: " + targetType);
+        } else {
+            // ArrayType or RecordType casting - for now, just pass through
+            // TODO: Implement proper casting for arrays and records
+            throw new IllegalArgumentException("Cannot cast " + sourceType + " to " + targetType);
         }
     }
 
@@ -825,12 +904,12 @@ public class CodeGenerator {
         Type t = binary.left().type();
         
         // Generate comparison branch (left and right already on stack)
-        if (t == Type.INT || t == Type.BOOLEAN) {
+        if (t == BuiltInType.INT || t == BuiltInType.BOOLEAN) {
             out.printf("    %s %s%n", intCmpTrue(binary.op()), trueLabel);
-        } else if (t == Type.DOUBLE) {
+        } else if (t == BuiltInType.DOUBLE) {
             out.println("    dcmpg");
             out.printf("    %s %s%n", dblCmpTrue(binary.op()), trueLabel);
-        } else if (t == Type.STRING) {
+        } else if (t == BuiltInType.STRING) {
             if (binary.op() == BinaryOp.EQ || binary.op() == BinaryOp.NE) {
                 // Use equals() for == and !=
                 out.println("    invokevirtual java/lang/String equals (Ljava/lang/Object;)Z");

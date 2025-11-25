@@ -130,7 +130,7 @@ public class SemanticAnalyzer {
                 return List.of(irAssembly);
             }
             case AstFunctionCall call -> {
-                // Check return type of function call - if void then return IrStatement
+                // Check return oldType of function call - if void then return IrStatement
                 Function func = table.resolveFunction(call.name()).orElseThrow(() -> new SemanticAnalysisException("Function not defined: " + call.name()));
                 List<IrExpression> irArgs = new ArrayList<>();
                 
@@ -140,7 +140,7 @@ public class SemanticAnalyzer {
                 // Validate argument count
                 if (call.args().size() != paramTypes.size()) {
                     throw new SemanticAnalysisException(
-                        "Function " + func.name() + " expects " + paramTypes.size() + 
+                        "Function " + func.name() + " expects " + paramTypes.size() +
                         " arguments but got " + call.args().size());
                 }
                 
@@ -150,23 +150,23 @@ public class SemanticAnalyzer {
                     Type paramType = paramTypes.get(i);
                     
                     // Widen int to double if needed
-                    if (argType == Type.INT && paramType == Type.DOUBLE) {
+                    if (argType == BuiltInType.INT && paramType == BuiltInType.DOUBLE) {
                         arg = new IrWiden(arg);
                     }
                     // Convert to string if needed
-                    else if (paramType == Type.STRING && argType != Type.STRING) {
+                    else if (paramType == BuiltInType.STRING && argType != BuiltInType.STRING) {
                         arg = new IrToString(arg);
                     }
                     // Error if types don't match and can't be widened/converted
                     else if (argType != paramType) {
-                        throw new SemanticAnalysisException("Type mismatch in function call: argument " + (i+1) + " has type " + argType + " but function expects " + paramType);
+                        throw new SemanticAnalysisException("Type mismatch in function call: argument " + (i+1) + " has oldType " + argType + " but function expects " + paramType);
                     }
                     
                     irArgs.add(arg);
                 }
                 Type irType = switch (func.returnType()) {
                     case Type t -> t;
-                    case ReturnType.Void _ -> Type.VOID;
+                    case ReturnType.Void _ -> throw new SemanticAnalysisException("Cannot use void function as expression");
                 };
                 IrFunctionCall irCall = new IrFunctionCall(irType, func.name(), irArgs);
                 // Always return as statement; CodeGenerator will pop non-void results
@@ -187,7 +187,7 @@ public class SemanticAnalyzer {
                     } else if (arg instanceof AstString strArg) {
                         irArgs.add(new IrString(strArg.text()));
                     } else {
-                        throw new SemanticAnalysisException("Unknown print argument type: " + arg.getClass().getSimpleName());
+                        throw new SemanticAnalysisException("Unknown print argument oldType: " + arg.getClass().getSimpleName());
                     }
                 }
                 return List.of(new IrPrint(irArgs));
@@ -219,9 +219,9 @@ public class SemanticAnalyzer {
                 Type targetType = ((Type) retType);
                 
                 // Apply same widening/toString rules as assignment
-                if (valueType == Type.INT && targetType == Type.DOUBLE) {
+                if (valueType == BuiltInType.INT && targetType == BuiltInType.DOUBLE) {
                     value = new IrWiden(value);
-                } else if (targetType == Type.STRING && valueType != Type.STRING) {
+                } else if (targetType == BuiltInType.STRING && valueType != BuiltInType.STRING) {
                     value = new IrToString(value);
                 } else if (valueType != targetType) {
                     throw new SemanticAnalysisException("Type mismatch in return: cannot return " + valueType + " from function " + currrentFunction.name() + " expecting " + targetType);
@@ -230,7 +230,13 @@ public class SemanticAnalyzer {
                 return List.of(new IrReturn(Optional.of(value)));
             }
             case AstVariableAssignment assign -> {
-                String varName = assign.variable();
+                // For now, only handle simple variable lvalues
+                // TODO: Support array subscript and field access lvalues
+                if (!(assign.lvalue() instanceof AstVariable varAst)) {
+                    throw new SemanticAnalysisException("Complex lvalues (array subscripts, field access) not yet supported in assignments");
+                }
+                
+                String varName = varAst.variable();
                 Variable var = table.resolveVariable(varName).orElseThrow(() -> new SemanticAnalysisException("Variable not defined: " + varName));
                 Type targetType = var.type();
                 IrExpression valueExpr;
@@ -239,7 +245,7 @@ public class SemanticAnalyzer {
                 if (assign.expr() instanceof AstInput inputExpr) {
                     // Analyze prompt and coerce to string if needed
                     IrExpression promptExpr = analyzeExpression(inputExpr.prompt(), table, currrentFunction);
-                    if (promptExpr.type() != Type.STRING) {
+                    if (promptExpr.type() != BuiltInType.STRING) {
                         promptExpr = new IrToString(promptExpr);
                     }
                     valueExpr = new IrInput(targetType, promptExpr);
@@ -250,11 +256,11 @@ public class SemanticAnalyzer {
                 Type valueType = valueExpr.type();
 
                 // Widen int to double if needed
-                if (valueType == Type.INT && targetType == Type.DOUBLE) {
+                if (valueType == BuiltInType.INT && targetType == BuiltInType.DOUBLE) {
                     valueExpr = new IrWiden(valueExpr);
                 }
                 // Convert to string if needed
-                else if (targetType == Type.STRING && valueType != Type.STRING) {
+                else if (targetType == BuiltInType.STRING && valueType != BuiltInType.STRING) {
                     valueExpr = new IrToString(valueExpr);
                 }
                 // Error if types don't match and can't be widened/converted
@@ -297,10 +303,10 @@ public class SemanticAnalyzer {
                 if (decl.expr().isPresent()) {
                     Type targetType = var.type();
                     IrExpression valueExpr;
-                    // Special handling: input() as initializer should adopt the declared type
+                    // Special handling: input() as initializer should adopt the declared oldType
                     if (decl.expr().get() instanceof AstInput inputExpr) {
                         IrExpression promptExpr = analyzeExpression(inputExpr.prompt(), table, currrentFunction);
-                        if (promptExpr.type() != Type.STRING) {
+                        if (promptExpr.type() != BuiltInType.STRING) {
                             promptExpr = new IrToString(promptExpr);
                         }
                         valueExpr = new IrInput(targetType, promptExpr);
@@ -310,11 +316,11 @@ public class SemanticAnalyzer {
                     Type valueType = valueExpr.type();
                     
                     // Widen int to double if needed
-                    if (valueType == Type.INT && targetType == Type.DOUBLE) {
+                    if (valueType == BuiltInType.INT && targetType == BuiltInType.DOUBLE) {
                         valueExpr = new IrWiden(valueExpr);
                     }
                     // Convert to string if needed
-                    else if (targetType == Type.STRING && valueType != Type.STRING) {
+                    else if (targetType == BuiltInType.STRING && valueType != BuiltInType.STRING) {
                         valueExpr = new IrToString(valueExpr);
                     }
                     // Error if types don't match and can't be widened/converted
@@ -331,7 +337,7 @@ public class SemanticAnalyzer {
             
             case AstIf astIf -> {
                 IrExpression condition = analyzeExpression(astIf.condition(), table, currrentFunction);
-                if (condition.type() != Type.BOOLEAN) {
+                if (condition.type() != BuiltInType.BOOLEAN) {
                     throw new SemanticAnalysisException("Condition of if statement must be BOOLEAN, found " + condition.type());
                 }
                 condition = invertCondition(condition);
@@ -372,7 +378,7 @@ public class SemanticAnalyzer {
                 result.add(new IrBranchTarget(startLabel));
 
                 IrExpression condition = analyzeExpression(astWhile.condition(), whileScope, currrentFunction);
-                if (condition.type() != Type.BOOLEAN) {
+                if (condition.type() != BuiltInType.BOOLEAN) {
                     throw new SemanticAnalysisException("Condition of while loop must be BOOLEAN, found " + condition.type());
                 }
                 condition = invertCondition(condition);
@@ -395,7 +401,7 @@ public class SemanticAnalyzer {
                 // Update: var = var + stepVal
                 AstVariable varRef = new AstVariable(pascalFor.varName());
                 AstBinary addExpr = new AstBinary(BinaryOp.ADD, varRef, pascalFor.stepVal());
-                AstVariableAssignment updateAssign = new AstVariableAssignment(pascalFor.varName(), addExpr);
+                AstVariableAssignment updateAssign = new AstVariableAssignment(varRef, addExpr);
                 Optional<AstStatement> update = Optional.of(updateAssign);
                 
                 // Condition: (stepVal >= 0 && var <= endVal) || (stepVal < 0 && var >= endVal)
@@ -435,7 +441,7 @@ public class SemanticAnalyzer {
 
                 if (astFor.condition().isPresent()) {
                     IrExpression condition = analyzeExpression(astFor.condition().get(), loopScope, currrentFunction);
-                    if (condition.type() != Type.BOOLEAN) {
+                    if (condition.type() != BuiltInType.BOOLEAN) {
                         throw new SemanticAnalysisException("Condition of for loop must be BOOLEAN, found " + condition.type());
                     }
                     condition = invertCondition(condition);
@@ -461,7 +467,7 @@ public class SemanticAnalyzer {
                 IrExpression irExpr = analyzeExpression(increment, table, currrentFunction);
                 return List.of(new IrExpressionStatement(irExpr));
             }
-            default -> throw new SemanticAnalysisException("Unknown statement type: " + astStatement.getClass().getSimpleName());
+            default -> throw new SemanticAnalysisException("Unknown statement oldType: " + astStatement.getClass().getSimpleName());
         }
     }
 
@@ -477,20 +483,20 @@ public class SemanticAnalyzer {
                 return switch (binary.op()) {
                     case ADD -> {
                         // ADD with strings should use CONCAT
-                        if (left.type() == Type.STRING || right.type() == Type.STRING) {
+                        if (left.type() == BuiltInType.STRING || right.type() == BuiltInType.STRING) {
                             // Convert both sides to string if needed
-                            if (left.type() != Type.STRING) {
+                            if (left.type() != BuiltInType.STRING) {
                                 left = new IrToString(left);
                             }
-                            if (right.type() != Type.STRING) {
+                            if (right.type() != BuiltInType.STRING) {
                                 right = new IrToString(right);
                             }
                             yield new IrBinary(BinaryOp.CONCAT, left, right);
                         }
                         // Numeric ADD: widen int to double if needed
-                        if (left.type() == Type.INT && right.type() == Type.DOUBLE) {
+                        if (left.type() == BuiltInType.INT && right.type() == BuiltInType.DOUBLE) {
                             left = new IrWiden(left);
-                        } else if (left.type() == Type.DOUBLE && right.type() == Type.INT) {
+                        } else if (left.type() == BuiltInType.DOUBLE && right.type() == BuiltInType.INT) {
                             right = new IrWiden(right);
                         } else if (left.type() != right.type()) {
                             throw new SemanticAnalysisException("Type mismatch in " + binary.op() + ": " + left.type() + " and " + right.type());
@@ -499,9 +505,9 @@ public class SemanticAnalyzer {
                     }
                     case SUB, MUL, DIV, MOD -> {
                         // Widen int to double if needed
-                        if (left.type() == Type.INT && right.type() == Type.DOUBLE) {
+                        if (left.type() == BuiltInType.INT && right.type() == BuiltInType.DOUBLE) {
                             left = new IrWiden(left);
-                        } else if (left.type() == Type.DOUBLE && right.type() == Type.INT) {
+                        } else if (left.type() == BuiltInType.DOUBLE && right.type() == BuiltInType.INT) {
                             right = new IrWiden(right);
                         } else if (left.type() != right.type()) {
                             throw new SemanticAnalysisException("Type mismatch in " + binary.op() + ": " + left.type() + " and " + right.type());
@@ -510,33 +516,33 @@ public class SemanticAnalyzer {
                     }
                     case CONCAT -> {
                         // Convert both sides to string if needed
-                        if (left.type() != Type.STRING) {
+                        if (left.type() != BuiltInType.STRING) {
                             left = new IrToString(left);
                         }
-                        if (right.type() != Type.STRING) {
+                        if (right.type() != BuiltInType.STRING) {
                             right = new IrToString(right);
                         }
                         yield new IrBinary(binary.op(), left, right);
                     }
                     case EQ, NE, LT, LE, GT, GE -> {
-                        // Both sides must be same type (INT, DOUBLE, or STRING)
+                        // Both sides must be same oldType (INT, DOUBLE, or STRING)
                         // Widen int to double if needed for numeric comparisons
-                        if (left.type() == Type.INT && right.type() == Type.DOUBLE) {
+                        if (left.type() == BuiltInType.INT && right.type() == BuiltInType.DOUBLE) {
                             left = new IrWiden(left);
-                        } else if (left.type() == Type.DOUBLE && right.type() == Type.INT) {
+                        } else if (left.type() == BuiltInType.DOUBLE && right.type() == BuiltInType.INT) {
                             right = new IrWiden(right);
                         } else if (left.type() != right.type()) {
                             throw new SemanticAnalysisException("Type mismatch in " + binary.op() + ": " + left.type() + " and " + right.type());
                         }
-                        // Verify type is comparable (INT, DOUBLE, or STRING)
-                        if (left.type() != Type.INT && left.type() != Type.DOUBLE && left.type() != Type.STRING) {
+                        // Verify oldType is comparable (INT, DOUBLE, or STRING)
+                        if (left.type() != BuiltInType.INT && left.type() != BuiltInType.DOUBLE && left.type() != BuiltInType.STRING) {
                             throw new SemanticAnalysisException("Type mismatch in " + binary.op() + ": " + left.type() + " is not comparable");
                         }
                         yield new IrBinary(binary.op(), left, right);
                     }
                     case AND, OR -> {
                         // Logical operators: both sides must be BOOLEAN
-                        if (left.type() != Type.BOOLEAN || right.type() != Type.BOOLEAN) {
+                        if (left.type() != BuiltInType.BOOLEAN || right.type() != BuiltInType.BOOLEAN) {
                             throw new SemanticAnalysisException("Type mismatch in " + binary.op() + ": " + left.type() + " and " + right.type() + " must be BOOLEAN");
                         }
                         yield new IrBinary(binary.op(), left, right);
@@ -548,14 +554,14 @@ public class SemanticAnalyzer {
                 return switch (unary.op()) {
                     case NEGATE -> {
                         // Negate must be INT or DOUBLE
-                        if (inner.type() != Type.INT && inner.type() != Type.DOUBLE) {
+                        if (inner.type() != BuiltInType.INT && inner.type() != BuiltInType.DOUBLE) {
                             throw new SemanticAnalysisException("Type mismatch in negate: " + inner.type() + " must be INT or DOUBLE");
                         }
                         yield new IrUnary(unary.op(), inner);
                     }
                     case NOT -> {
                         // NOT must be BOOLEAN
-                        if (inner.type() != Type.BOOLEAN) {
+                        if (inner.type() != BuiltInType.BOOLEAN) {
                             throw new SemanticAnalysisException("Type mismatch in NOT: " + inner.type() + " must be BOOLEAN");
                         }
                         yield new IrUnary(unary.op(), inner);
@@ -563,7 +569,7 @@ public class SemanticAnalyzer {
                 };
             }
             case AstInt intLiteral -> {
-                return new IrInt(Type.INT, intLiteral.value());
+                return new IrInt(intLiteral.value());
             }
             case AstDouble doubleLiteral -> {
                 return new IrDouble(doubleLiteral.value());
@@ -577,17 +583,17 @@ public class SemanticAnalyzer {
             case AstFunctionCall call -> {
                 Function func = table.resolveFunction(call.name())
                         .orElseThrow(() -> new SemanticAnalysisException("Function not defined: " + call.name()));
-                // Check if function returns a non-void type
+                // Check if function returns a non-void oldType
                 if (func.returnType() instanceof ReturnType.Void) {
                     throw new SemanticAnalysisException("Cannot use void function call as an expression: " + call.name());
-                } else if (func.returnType() instanceof Type t && t != Type.VOID) {
+                } else if (func.returnType() instanceof Type t && t != BuiltInType.VOID) {
                     List<IrExpression> irArgs = new ArrayList<>();
                     List<Type> paramTypes = func.parameterTypes();
                     
                     // Validate argument count
                     if (call.args().size() != paramTypes.size()) {
                         throw new SemanticAnalysisException(
-                            "Function " + func.name() + " expects " + paramTypes.size() + 
+                            "Function " + func.name() + " expects " + paramTypes.size() +
                             " arguments but got " + call.args().size());
                     }
                     
@@ -598,16 +604,16 @@ public class SemanticAnalyzer {
                         Type paramType = paramTypes.get(i);
                         
                         // Widen int to double if needed
-                        if (argType == Type.INT && paramType == Type.DOUBLE) {
+                        if (argType == BuiltInType.INT && paramType == BuiltInType.DOUBLE) {
                             arg = new IrWiden(arg);
                         }
                         // Convert to string if needed
-                        else if (paramType == Type.STRING && argType != Type.STRING) {
+                        else if (paramType == BuiltInType.STRING && argType != BuiltInType.STRING) {
                             arg = new IrToString(arg);
                         }
                         // Error if types don't match and can't be widened/converted
                         else if (argType != paramType) {
-                            throw new SemanticAnalysisException("Type mismatch in function call: argument " + (i+1) + " has type " + argType + " but function expects " + paramType);
+                            throw new SemanticAnalysisException("Type mismatch in function call: argument " + (i+1) + " has oldType " + argType + " but function expects " + paramType);
                         }
                         
                         irArgs.add(arg);
@@ -616,21 +622,6 @@ public class SemanticAnalyzer {
                 } else {
                     throw new SemanticAnalysisException("Cannot use void function call as an expression: " + call.name());
                 }
-            }
-            case AstSqrt sqrt -> {
-                IrExpression inner = analyzeExpression(sqrt.expr(), table, currentFunction);
-                
-                // Validate numeric type
-                if (inner.type() != Type.INT && inner.type() != Type.DOUBLE) {
-                    throw new SemanticAnalysisException("sqrt() requires numeric type (int or double), got: " + inner.type());
-                }
-                
-                // Widen INT to DOUBLE for consistency
-                if (inner.type() == Type.INT) {
-                    inner = new IrWiden(inner);
-                }
-                
-                return new IrSqrt(inner);
             }
             case AstCast cast -> {
                 IrExpression inner = analyzeExpression(cast.expr(), table, currentFunction);
@@ -643,62 +634,68 @@ public class SemanticAnalyzer {
                 }
                 
                 // Handle various cast conversions
-                return switch (targetType) {
-                    case INT -> {
-                        // Convert to int
-                        if (sourceType == Type.DOUBLE) {
-                            // Double to int: truncate
-                            yield new IrCast(targetType, inner);
-                        } else if (sourceType == Type.STRING) {
-                            // String to int: parse
-                            yield new IrCast(targetType, inner);
-                        } else if (sourceType == Type.BOOLEAN) {
-                            // Boolean to int: true -> 1, false -> 0
-                            yield new IrCast(targetType, inner);
-                        } else {
-                            throw new SemanticAnalysisException("Cannot cast " + sourceType + " to " + targetType);
+                if (targetType instanceof BuiltInType builtIn) {
+                    return switch (builtIn) {
+                        case INT -> {
+                            // Convert to int
+                            if (sourceType == BuiltInType.DOUBLE) {
+                                // Double to int: truncate
+                                yield new IrCast(targetType, inner);
+                            } else if (sourceType == BuiltInType.STRING) {
+                                // String to int: parse
+                                yield new IrCast(targetType, inner);
+                            } else if (sourceType == BuiltInType.BOOLEAN) {
+                                // Boolean to int: true -> 1, false -> 0
+                                yield new IrCast(targetType, inner);
+                            } else {
+                                throw new SemanticAnalysisException("Cannot cast " + sourceType + " to " + targetType);
+                            }
                         }
-                    }
-                    case DOUBLE -> {
-                        // Convert to double
-                        if (sourceType == Type.INT) {
-                            // Int to double: widen
-                            yield new IrWiden(inner);
-                        } else if (sourceType == Type.STRING) {
-                            // String to double: parse
-                            yield new IrCast(targetType, inner);
-                        } else if (sourceType == Type.BOOLEAN) {
-                            // Boolean to double: true -> 1.0, false -> 0.0
-                            yield new IrCast(targetType, inner);
-                        } else {
-                            throw new SemanticAnalysisException("Cannot cast " + sourceType + " to " + targetType);
+                        case DOUBLE -> {
+                            // Convert to double
+                            if (sourceType == BuiltInType.INT) {
+                                // Int to double: widen
+                                yield new IrWiden(inner);
+                            } else if (sourceType == BuiltInType.STRING) {
+                                // String to double: parse
+                                yield new IrCast(targetType, inner);
+                            } else if (sourceType == BuiltInType.BOOLEAN) {
+                                // Boolean to double: true -> 1.0, false -> 0.0
+                                yield new IrCast(targetType, inner);
+                            } else {
+                                throw new SemanticAnalysisException("Cannot cast " + sourceType + " to " + targetType);
+                            }
                         }
-                    }
-                    case STRING -> {
-                        // Convert to string
-                        if (sourceType == Type.STRING) {
-                            yield inner; // Already a string
-                        } else {
-                            // Any type to string: use toString
-                            yield new IrToString(inner);
+                        case STRING -> {
+                            // Convert to string
+                            if (sourceType == BuiltInType.STRING) {
+                                yield inner; // Already a string
+                            } else {
+                                // Any type to string: use toString
+                                yield new IrToString(inner);
+                            }
                         }
-                    }
-                    case BOOLEAN -> {
-                        // Convert to boolean
-                        if (sourceType == Type.BOOLEAN) {
-                            yield inner; // Already a boolean
-                        } else if (sourceType == Type.INT || sourceType == Type.DOUBLE) {
-                            // Numeric to boolean: non-zero -> true, zero -> false
-                            yield new IrCast(targetType, inner);
-                        } else if (sourceType == Type.STRING) {
-                            // String to boolean: parse "true"/"false" or check if non-empty
-                            yield new IrCast(targetType, inner);
-                        } else {
-                            throw new SemanticAnalysisException("Cannot cast " + sourceType + " to " + targetType);
+                        case BOOLEAN -> {
+                            // Convert to boolean
+                            if (sourceType == BuiltInType.BOOLEAN) {
+                                yield inner; // Already a boolean
+                            } else if (sourceType == BuiltInType.INT || sourceType == BuiltInType.DOUBLE) {
+                                // Numeric to boolean: non-zero -> true, zero -> false
+                                yield new IrCast(targetType, inner);
+                            } else if (sourceType == BuiltInType.STRING) {
+                                // String to boolean: parse "true"/"false" or check if non-empty
+                                yield new IrCast(targetType, inner);
+                            } else {
+                                throw new SemanticAnalysisException("Cannot cast " + sourceType + " to " + targetType);
+                            }
                         }
-                    }
-                    default -> throw new SemanticAnalysisException("Cannot cast to type: " + targetType);
-                };
+                        default -> throw new SemanticAnalysisException("Cannot cast to type: " + targetType);
+                    };
+                } else {
+                    // ArrayType or RecordType - for now, just pass through
+                    // TODO: Implement proper casting for arrays and records
+                    throw new SemanticAnalysisException("Cannot cast to type: " + targetType);
+                }
             }
             case AstVariable variable -> {
                 // Resolve variable from symbol table
@@ -710,13 +707,19 @@ public class SemanticAnalyzer {
                 return new IrVariable(var);
             }
             case AstIncrement increment -> {
+                // For now, only handle simple variable lvalues
+                // TODO: Support array subscript and field access lvalues
+                if (!(increment.lvalue() instanceof AstVariable varAst)) {
+                    throw new SemanticAnalysisException("Complex lvalues (array subscripts, field access) not yet supported in increments");
+                }
+                
                 // Resolve variable from symbol table
-                String varName = increment.variable().variable();
+                String varName = varAst.variable();
                 Variable var = table.resolveVariable(varName)
                     .orElseThrow(() -> new SemanticAnalysisException("Variable not defined: " + varName));
                 
                 // Variable must be INT or DOUBLE
-                if (var.type() != Type.INT && var.type() != Type.DOUBLE) {
+                if (var.type() != BuiltInType.INT && var.type() != BuiltInType.DOUBLE) {
                     throw new SemanticAnalysisException("Increment/decrement only works on int and double variables, got: " + var.type());
                 }
                 
@@ -726,13 +729,13 @@ public class SemanticAnalyzer {
             case AstInput input -> {
                 // Analyze prompt and coerce to string if needed
                 IrExpression promptExpr = analyzeExpression(input.prompt(), table, currentFunction);
-                if (promptExpr.type() != Type.STRING) {
+                if (promptExpr.type() != BuiltInType.STRING) {
                     promptExpr = new IrToString(promptExpr);
                 }
-                // Default to STRING type for standalone input() expressions
-                return new IrInput(Type.STRING, promptExpr);
+                // Default to STRING oldType for standalone input() expressions
+                return new IrInput(BuiltInType.STRING, promptExpr);
             }
-            default -> throw new SemanticAnalysisException("Unknown expression type: " + expr.getClass().getSimpleName());
+            default -> throw new SemanticAnalysisException("Unknown expression oldType: " + expr.getClass().getSimpleName());
         }
     }
 
