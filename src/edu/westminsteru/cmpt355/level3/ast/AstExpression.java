@@ -8,6 +8,6 @@ public sealed interface AstExpression extends AstNode, AstPrintArgument
         permits AstBinary, AstUnary,
         AstVariable, AstFunctionCall, AstInput,
         AstString, AstInt, AstDouble, AstBoolean, AstIncrement, AstCast,
-        AstArraySubscript, AstFieldAccess, AstThis, AstArrayConstruction,
+        AstArraySubscript, AstFieldAccess, AstArrayConstruction,
         AstRecordConstruction, AstMethodCall, AstLvalue 
     { }

@@ -6,6 +6,7 @@ package edu.westminsteru.cmpt355.level3.ast;
  * Note: This is a marker interface - the actual lvalue types are AstVariable, AstArraySubscript, AstFieldAccess
  * which directly implement AstExpression.
  */
-public non-sealed interface AstLvalue extends AstExpression {
+public sealed interface AstLvalue extends AstExpression
+    permits AstFieldAccess, AstArraySubscript, AstVariable {
 }
 

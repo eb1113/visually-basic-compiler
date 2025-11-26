@@ -130,10 +130,10 @@ returns [Type n]
                 }
             }
         }
-        // Build nested ArrayType if needed
+        // Build ArrayType using ArrayType.of() pattern
         Type result = $base.n;
         for (int i = 0; i < dimensions; i++) {
-            result = new ArrayType(result);
+            result = ArrayType.of(result);
         }
         $n = result;
     }
@@ -679,7 +679,7 @@ returns [AstExpression n]
         $n = $postfixInc.n;
     }
     | THIS {
-        $n = new AstThis();
+        $n = new AstVariable("this");
     }
     | newExpr {
         $n = $newExpr.n;

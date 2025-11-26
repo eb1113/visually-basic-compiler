@@ -43,18 +43,4 @@ public sealed interface Type extends ReturnType
         BuiltInType builtIn = BuiltInType.fromString(s);
         return builtIn;
     }
-
-    /**
-     * Creates an ArrayType with the given number of dimensions and base type.
-     * @param dimensions number of array dimensions
-     * @param baseType the base element type
-     * @return the ArrayType (nested if dimensions > 1)
-     */
-    static Type createArrayType(int dimensions, Type baseType) {
-        Type result = baseType;
-        for (int i = 0; i < dimensions; i++) {
-            result = new ArrayType(result);
-        }
-        return result;
-    }
 }
