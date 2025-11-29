@@ -18,18 +18,21 @@ options {
 program
 returns [AstProgram n]
     : elements=mixedElements EOF
-        // Separate functions and statements from all elements
+        // Separate functions, records, and statements from all elements
         {
         List<AstFunctionDeclaration> funcs = new ArrayList<>();
+        List<AstRecordDeclaration> records = new ArrayList<>();
         List<AstStatement> stmts = new ArrayList<>();
         for (AstStatement element : $elements.n) {
             if (element instanceof AstFunctionDeclaration funcDecl) {
                 funcs.add(funcDecl);
+            } else if (element instanceof AstRecordDeclaration recordDecl) {
+                records.add(recordDecl);
             } else {
                 stmts.add(element);
             }
         }
-        $n = new AstProgram(funcs, stmts);
+        $n = new AstProgram(funcs, records, stmts);
         }
     ;
 

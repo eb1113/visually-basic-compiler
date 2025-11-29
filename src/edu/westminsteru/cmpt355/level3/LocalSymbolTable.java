@@ -88,4 +88,11 @@ public class LocalSymbolTable implements SymbolTable {
     public LocalSymbolTable createChildScope() {
         return new LocalSymbolTable(globalTable, this);
     }
+
+    /**
+     * Returns the GlobalSymbolTable associated with this local symbol table.
+     */
+    public GlobalSymbolTable getGlobalTable() {
+        return globalTable;
+    }
 }
