@@ -13,6 +13,9 @@ public record IrMethodCall(IrExpression record, String methodName, List<IrExpres
 
     @Override
     public Iterable<? extends IrNode> children() {
-        return args;
+        java.util.List<IrNode> children = new java.util.ArrayList<>();
+        children.add(record);
+        children.addAll(args);
+        return children;
     }
 }

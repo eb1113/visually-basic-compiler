@@ -210,7 +210,9 @@ public class CodeGenerator {
         Map<String, Type> variableTypes = new HashMap<>();
         for (IrStatement stmt : program.statements()) {
             if (stmt instanceof IrVariableAssignment assign) {
-                variableTypes.put(assign.variable().name(), assign.variable().type());
+                if (assign.lvalue() instanceof IrVariable var) {
+                    variableTypes.put(var.variable().name(), var.variable().type());
+                }
             } else if (stmt instanceof IrVariableDeclaration decl) {
                 variableTypes.put(decl.variable().name(), decl.variable().type());
             }
@@ -429,14 +431,20 @@ public class CodeGenerator {
     private void generateAssignment(IrVariableAssignment assign) {
         generateExpression(assign.value());
         
-        // Check if it's a local or global variable
-        if (assign.variable() instanceof LocalVariable local) {
-            // Use local variable store instruction
-            emitStore(assign.variable().type(), local.index());
+        // Handle different types of lvalues
+        if (assign.lvalue() instanceof IrVariable var) {
+            // Check if it's a local or global variable
+            if (var.variable() instanceof LocalVariable local) {
+                // Use local variable store instruction
+                emitStore(var.variable().type(), local.index());
+            } else {
+                // Use static field access
+                String descriptor = var.variable().type().getDescriptor();
+                out.printf("    putstatic %s %s %s%n", outClassName, var.variable().name(), descriptor);
+            }
         } else {
-            // Use static field access
-            String descriptor = assign.variable().type().getDescriptor();
-            out.printf("    putstatic %s %s %s%n", outClassName, assign.variable().name(), descriptor);
+            // TODO: Handle array subscripts and field accesses
+            throw new InternalCompilerException("Assignment to non-variable lvalue not yet implemented: " + assign.lvalue());
         }
     }
 
@@ -644,11 +652,13 @@ public class CodeGenerator {
                 emitCall(call);
             }
             case IrIncrement inc -> {
-                Type varType = inc.variable().type();
-                boolean isPrefix = inc.isPrefix();
-                
-                // Load variable
-                if (inc.variable().variable() instanceof LocalVariable local) {
+                // Handle different types of lvalues
+                if (inc.lvalue() instanceof IrVariable var) {
+                    Type varType = var.variable().type();
+                    boolean isPrefix = inc.isPrefix();
+                    
+                    // Load variable
+                    if (var.variable() instanceof LocalVariable local) {
                     int index = local.index();
                     if (varType instanceof BuiltInType builtIn) {
                         switch (builtIn) {
@@ -659,10 +669,10 @@ public class CodeGenerator {
                     } else {
                         throw new IllegalArgumentException("Cannot increment " + varType);
                     }
-                } else {
-                    String descriptor = inc.variable().variable().type().getDescriptor();
-                    out.printf("    getstatic %s %s %s\n", outClassName, inc.variable().variable().name(), descriptor);
-                }
+                    } else {
+                        String descriptor = var.variable().type().getDescriptor();
+                        out.printf("    getstatic %s %s %s\n", outClassName, var.variable().name(), descriptor);
+                    }
                 
                 if (isPrefix) {
                     // Prefix: increment first, then use new value
@@ -684,7 +694,7 @@ public class CodeGenerator {
                         }
                     }
                     // Store back and leave incremented value on stack
-                    if (inc.variable().variable() instanceof LocalVariable local) {
+                    if (var.variable() instanceof LocalVariable local) {
                         int index = local.index();
                         if (varType instanceof BuiltInType builtIn) {
                             switch (builtIn) {
@@ -696,9 +706,9 @@ public class CodeGenerator {
                             throw new IllegalArgumentException("Cannot increment " + varType);
                         }
                     } else {
-                        String descriptor = inc.variable().variable().type().getDescriptor();
+                        String descriptor = var.variable().type().getDescriptor();
                         out.println("    dup" + (varType == BuiltInType.DOUBLE ? "2" : ""));
-                        out.printf("    putstatic %s %s %s\n", outClassName, inc.variable().variable().name(), descriptor);
+                        out.printf("    putstatic %s %s %s\n", outClassName, var.variable().name(), descriptor);
                         // Incremented value remains on stack from dup
                     }
                 } else {
@@ -728,7 +738,7 @@ public class CodeGenerator {
                         }
                     }
                     // Store incremented value back
-                    if (inc.variable().variable() instanceof LocalVariable local) {
+                    if (var.variable() instanceof LocalVariable local) {
                         int index = local.index();
                         if (varType instanceof BuiltInType builtIn) {
                             switch (builtIn) {
@@ -740,10 +750,14 @@ public class CodeGenerator {
                             throw new IllegalArgumentException("Cannot increment " + varType);
                         }
                     } else {
-                        String descriptor = inc.variable().variable().type().getDescriptor();
-                        out.printf("    putstatic %s %s %s\n", outClassName, inc.variable().variable().name(), descriptor);
+                        String descriptor = var.variable().type().getDescriptor();
+                        out.printf("    putstatic %s %s %s\n", outClassName, var.variable().name(), descriptor);
                     }
                     // Original value is still on stack (from dup before increment)
+                }
+                } else {
+                    // TODO: Handle array subscripts and field accesses
+                    throw new InternalCompilerException("Increment on non-variable lvalue not yet implemented: " + inc.lvalue());
                 }
             }
             default -> throw new IllegalArgumentException("Unknown expression: " + expr);

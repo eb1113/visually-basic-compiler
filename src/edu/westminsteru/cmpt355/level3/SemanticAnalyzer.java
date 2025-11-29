@@ -268,7 +268,8 @@ public class SemanticAnalyzer {
                     throw new SemanticAnalysisException("Type mismatch: cannot assign " + valueType + " to " + targetType);
                 }
 
-                IrVariableAssignment varAssign = new IrVariableAssignment(var, valueExpr);
+                IrVariable irVariable = new IrVariable(var);
+                IrVariableAssignment varAssign = new IrVariableAssignment(irVariable, valueExpr);
                 return List.of(varAssign);
             }
             case AstVariableDeclaration decl -> {
