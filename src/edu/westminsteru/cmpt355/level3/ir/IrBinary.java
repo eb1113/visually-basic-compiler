@@ -5,6 +5,12 @@ import edu.westminsteru.cmpt355.level3.ast.BinaryOp;
 import edu.westminsteru.cmpt355.level3.lang.BuiltInType;
 import edu.westminsteru.cmpt355.level3.lang.Type;
 
+/**
+ * Binary operation: left op right
+ * @param op The binary operation.
+ * @param left The left operand.
+ * @param right The right operand.
+ */
 public record IrBinary(BinaryOp op, edu.westminsteru.cmpt355.level3.ir.IrExpression left, IrExpression right) implements IrExpression {
     @Override
     public Type type() {

@@ -5,6 +5,12 @@ import edu.westminsteru.cmpt355.level3.ast.IncrementOp;
 import edu.westminsteru.cmpt355.level3.lang.BuiltInType;
 import edu.westminsteru.cmpt355.level3.lang.Type;
 
+/**
+ * Increment/decrement operation: lvalue op
+ * @param op The operation (INCREMENT or DECREMENT).
+ * @param lvalue The left-hand side value (lvalue).
+ * @param isPrefix Whether the operation is prefix or postfix.
+ */
 public record IrIncrement(IncrementOp op, IrExpression lvalue, boolean isPrefix) implements IrExpression {
     @Override
     public Type type() {

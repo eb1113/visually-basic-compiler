@@ -2,6 +2,10 @@ package edu.westminsteru.cmpt355.level3.ir;
 
 import edu.westminsteru.cmpt355.level3.lang.BuiltInType;
 
+/**
+ * String literal
+ * @param value The string value.
+ */
 public record IrString(String value) implements IrExpression {
     @Override
     public BuiltInType type() {

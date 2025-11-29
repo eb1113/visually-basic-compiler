@@ -1,7 +1,10 @@
 package edu.westminsteru.cmpt355.level3.ir;
 
 import edu.westminsteru.cmpt355.level3.lang.BuiltInType;
-
+/**
+ * Boolean literal: true or false
+ * @param value The boolean value.
+ */
 public record IrBoolean(boolean value) implements IrExpression {
     @Override
     public BuiltInType type() {

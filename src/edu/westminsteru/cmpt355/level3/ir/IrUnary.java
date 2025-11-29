@@ -5,6 +5,11 @@ import edu.westminsteru.cmpt355.level3.ast.UnaryOp;
 import edu.westminsteru.cmpt355.level3.lang.BuiltInType;
 import edu.westminsteru.cmpt355.level3.lang.Type;
 
+/**
+ * Unary operation: op expr
+ * @param op The unary operation (NEGATE or NOT).
+ * @param expr The expression to apply the operation to (expr).
+ */
 public record IrUnary(UnaryOp op, IrExpression expr) implements IrExpression {
     @Override
     public Type type() {

@@ -2,6 +2,10 @@ package edu.westminsteru.cmpt355.level3.ir;
 
 import edu.westminsteru.cmpt355.level3.lang.BuiltInType;
 
+/**
+ * Integer literal
+ * @param value The integer value.
+ */
 public record IrInt(int value) implements IrExpression {
     @Override
     public BuiltInType type() {
