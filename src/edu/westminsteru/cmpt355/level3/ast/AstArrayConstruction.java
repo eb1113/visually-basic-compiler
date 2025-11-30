@@ -1,17 +1,19 @@
 package edu.westminsteru.cmpt355.level3.ast;
 
-import edu.westminsteru.cmpt355.level3.lang.Type;
+import edu.westminsteru.cmpt355.level3.lang.ScalarType;
+
+import java.util.List;
 
 /**
- * Array construction: new int[100]
- * @param elementType The type of the elements in the array.
- * @param size The size of the array.
+ * Array construction: new int[100] or new int[10][20]...
+ * @param baseType The base type of the array (ScalarType before adding dimensions).
+ * @param dimensions List of dimension size expressions.
  */
-public record AstArrayConstruction(Type elementType, AstExpression size)
+public record AstArrayConstruction(ScalarType baseType, List<AstExpression> dimensions)
         implements AstExpression {
     @Override
     public Iterable<? extends AstExpression> children() {
-        return java.util.List.of(size);
+        return dimensions;
     }
 }
 

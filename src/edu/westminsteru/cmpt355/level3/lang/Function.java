@@ -13,7 +13,7 @@ public record Function(
     String name,
     ReturnType returnType,
     List<Type> parameterTypes
-) {
+) implements Callable {
 
     public String getDescriptor() {
         StringBuilder sb = new StringBuilder();

@@ -5,6 +5,7 @@ import edu.westminsteru.cmpt355.level3.ir.*;
 import edu.westminsteru.cmpt355.level3.lang.*;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -19,9 +20,18 @@ import java.util.Optional;
 public class SemanticAnalyzer {
 
     private int labelCounter = 0;
+    private GlobalSymbolTable globalTable;
 
     private String newLabel(String base) {
         return base + (labelCounter++);
+    }
+
+    /**
+     * Returns the global symbol table used during analysis.
+     * @return The global symbol table.
+     */
+    public GlobalSymbolTable getGlobalSymbolTable() {
+        return globalTable;
     }
 
     /**
@@ -42,10 +52,10 @@ public class SemanticAnalyzer {
     }
 
     /**
-     * Helper method to get the GlobalSymbolTable from any SymbolTable.
+     * Helper method to extract the GlobalSymbolTable from any SymbolTable.
      * Returns the GlobalSymbolTable directly, or extracts it from LocalSymbolTable.
      */
-    private GlobalSymbolTable getGlobalSymbolTable(SymbolTable table) throws SemanticAnalysisException {
+    private GlobalSymbolTable extractGlobalSymbolTable(SymbolTable table) throws SemanticAnalysisException {
         if (table instanceof GlobalSymbolTable global) {
             return global;
         } else if (table instanceof LocalSymbolTable local) {
@@ -61,13 +71,20 @@ public class SemanticAnalyzer {
      * @throws SemanticAnalysisException If there is a semantic analysis error.
      */
     public IrProgram analyzeProgram(AstProgram astProgram) throws SemanticAnalysisException {
-        GlobalSymbolTable globalTable = new GlobalSymbolTable();
+        this.globalTable = new GlobalSymbolTable();
         List<IrFunctionDeclaration> irFunctions = new ArrayList<>();
         List<IrStatement> irStatements = new ArrayList<>();
+        Map<String, List<IrFunctionDeclaration>> recordMethods = new HashMap<>();
 
-        // Process record declarations first
+        // Process record declarations first (define signatures only)
         for (AstRecordDeclaration recordDecl : astProgram.records()) {
             analyzeRecord(recordDecl, globalTable);
+        }
+        
+        // Analyze record method bodies (after all records are defined)
+        for (AstRecordDeclaration recordDecl : astProgram.records()) {
+            List<IrFunctionDeclaration> methodBodies = analyzeRecordMethodBodies(recordDecl, globalTable);
+            recordMethods.put(recordDecl.name(), methodBodies);
         }
 
         // Define all functions (without analyzing bodies)
@@ -105,7 +122,7 @@ public class SemanticAnalyzer {
             }
         }
 
-        return new IrProgram(irFunctions, irStatements);
+        return new IrProgram(irFunctions, irStatements, recordMethods);
     }
 
     /**
@@ -124,7 +141,7 @@ public class SemanticAnalyzer {
                 recordTable.defineField(field.getValue(), field.getKey());
             }
             
-            // Define all methods
+            // Define all methods (signatures only, bodies analyzed later)
             for (AstFunctionDeclaration methodDecl : astRecord.methods()) {
                 List<Type> paramTypes = methodDecl.parameters().stream()
                     .map(p -> p.type())
@@ -137,6 +154,64 @@ public class SemanticAnalyzer {
         } catch (DuplicateDefinitionException e) {
             throw new SemanticAnalysisException("Record " + astRecord.name() + " is already defined: " + e.getMessage());
         }
+    }
+
+    /**
+     * Analyzes record method bodies and returns them as IR declarations.
+     * Similar to analyzeFunction, but for record methods (with 'this' as local 0).
+     * @param astRecord The AST record declaration containing method bodies.
+     * @param table The global symbol table.
+     * @return List of IR function declarations for the record's methods.
+     * @throws SemanticAnalysisException If there is a semantic analysis error.
+     */
+    private List<IrFunctionDeclaration> analyzeRecordMethodBodies(AstRecordDeclaration astRecord, GlobalSymbolTable table) throws SemanticAnalysisException {
+        // Get the record symbol table
+        RecordSymbolTable recordTable = table.resolveRecord(astRecord.name())
+            .orElseThrow(() -> new SemanticAnalysisException("Record " + astRecord.name() + " not found in symbol table."));
+        
+        // Create RecordType for this record
+        RecordType recordType = new RecordType(astRecord.name(), recordTable.getFields());
+        
+        List<IrFunctionDeclaration> methodBodies = new ArrayList<>();
+        
+        // Analyze each method body (similar to analyzeFunction)
+        for (AstFunctionDeclaration methodDecl : astRecord.methods()) {
+            // Get the method signature
+            Method method = recordTable.resolveMethod(methodDecl.name())
+                .orElseThrow(() -> new SemanticAnalysisException("Method " + methodDecl.name() + " not found in record " + astRecord.name()));
+            
+            // Create a local symbol table for the method
+            LocalSymbolTable localTable = new LocalSymbolTable(table);
+            
+            // Define 'this' as local variable 0
+            LocalVariable thisVar = localTable.defineVariable(recordType, "this");
+            if (thisVar.index() != 0) {
+                throw new SemanticAnalysisException("Internal error: 'this' should be at index 0");
+            }
+            
+            // Build IR parameters by defining with local variables (starting at index 1)
+            List<IrParameter> irParameters = new ArrayList<>();
+            for (AstParameter param : methodDecl.parameters()) {
+                LocalVariable localVar = localTable.defineVariable(param.type(), param.name());
+                IrParameter irParam = new IrParameter(localVar);
+                irParameters.add(irParam);
+            }
+            
+            // Analyze the method body (with Method context, not Function)
+            IrBlock irBlock = analyzeBlock(methodDecl.body(), localTable, method);
+            
+            // Create the IR function declaration
+            IrFunctionDeclaration irMethod = new IrFunctionDeclaration(
+                methodDecl.type(),
+                methodDecl.name(),
+                irParameters,
+                irBlock
+            );
+            
+            methodBodies.add(irMethod);
+        }
+        
+        return methodBodies;
     }
 
     /**
@@ -169,14 +244,12 @@ public class SemanticAnalyzer {
 
     }
 
-    public IrBlock analyzeBlock(AstBlock body, SymbolTable table, Function currentFunction) throws SemanticAnalysisException{
+    public IrBlock analyzeBlock(AstBlock body, SymbolTable table, Callable currentCallable) throws SemanticAnalysisException{
         SymbolTable blockTable = enterScope(table);
         List<IrStatement> irStatements = new ArrayList<>();
         for (AstStatement stmt : body.statements()) {
-            List<IrStatement> analyzed = analyzeStatement(stmt, blockTable, currentFunction);
-            if (analyzed != null) {
-                irStatements.addAll(analyzed);
-            }
+            List<IrStatement> analyzed = analyzeStatement(stmt, blockTable, currentCallable);
+            irStatements.addAll(analyzed);
         }
         return new IrBlock(irStatements);
     }
@@ -185,21 +258,21 @@ public class SemanticAnalyzer {
      * Analyzes an AST statement and generates an IR statement.
      * @param astStatement The AST statement to analyze.
      * @param table The symbol table.
-     * @param currrentFunction The current function.
-     * @return The generated IR statement.
+     * @param currentCallable The current function or method.
+     * @return The generated IR statement (never null, may be empty list).
      * @throws SemanticAnalysisException If there is a semantic analysis error.
      */
-    public List<IrStatement> analyzeStatement(AstStatement astStatement, SymbolTable table, Function currrentFunction) throws SemanticAnalysisException {
+    public List<IrStatement> analyzeStatement(AstStatement astStatement, SymbolTable table, Callable currentCallable) throws SemanticAnalysisException {
         // astStatement could be at either the local or global level
         // symbols variable or functions deal with optional case
-        // currentFunction can be null if at global level
+        // currentCallable can be null if at global level
         if (astStatement == null) {
             // Skip null statements (can happen with empty for loop parts)
-            return null;
+            return List.of();
         }
         switch(astStatement){
             case AstBlock block -> {
-                return List.of(analyzeBlock(block, table, currrentFunction));
+                return List.of(analyzeBlock(block, table, currentCallable));
             }
             case AstAssembly assembly -> {
                 IrAssembly irAssembly = new IrAssembly(assembly.comment());
@@ -208,38 +281,9 @@ public class SemanticAnalyzer {
             case AstFunctionCall call -> {
                 // Check return oldType of function call - if void then return IrStatement
                 Function func = table.resolveFunction(call.name()).orElseThrow(() -> new SemanticAnalysisException("Function not defined: " + call.name()));
-                List<IrExpression> irArgs = new ArrayList<>();
+                List<IrExpression> irArgs = analyzeArguments(call.args(), func.parameterTypes(), table, currentCallable, 
+                    "Function " + func.name());
                 
-                // Analyze arguments and widen them to match function signature
-                List<Type> paramTypes = func.parameterTypes();
-                
-                // Validate argument count
-                if (call.args().size() != paramTypes.size()) {
-                    throw new SemanticAnalysisException(
-                        "Function " + func.name() + " expects " + paramTypes.size() +
-                        " arguments but got " + call.args().size());
-                }
-                
-                for (int i = 0; i < call.args().size(); i++) {
-                    IrExpression arg = analyzeExpression(call.args().get(i), table, currrentFunction);
-                    Type argType = arg.type();
-                    Type paramType = paramTypes.get(i);
-                    
-                    // Widen int to double if needed
-                    if (argType == BuiltInType.INT && paramType == BuiltInType.DOUBLE) {
-                        arg = new IrWiden(arg);
-                    }
-                    // Convert to string if needed
-                    else if (paramType == BuiltInType.STRING && argType != BuiltInType.STRING) {
-                        arg = new IrToString(arg);
-                    }
-                    // Error if types don't match and can't be widened/converted
-                    else if (argType != paramType) {
-                        throw new SemanticAnalysisException("Type mismatch in function call: argument " + (i+1) + " has oldType " + argType + " but function expects " + paramType);
-                    }
-                    
-                    irArgs.add(arg);
-                }
                 Type irType = switch (func.returnType()) {
                     case Type t -> t;
                     case ReturnType.Void _ -> throw new SemanticAnalysisException("Cannot use void function as expression");
@@ -259,7 +303,7 @@ public class SemanticAnalyzer {
                         throw new SemanticAnalysisException("Print argument cannot be null");
                     }
                     if (arg instanceof AstExpression exprArg) {
-                        irArgs.add(analyzeExpression(exprArg, table, currrentFunction));
+                        irArgs.add(analyzeExpression(exprArg, table, currentCallable));
                     } else if (arg instanceof AstString strArg) {
                         irArgs.add(new IrString(strArg.text()));
                     } else {
@@ -269,27 +313,27 @@ public class SemanticAnalyzer {
                 return List.of(new IrPrint(irArgs));
             }
             case AstReturn ret -> {
-                // Validate that return is inside a function
-                if (currrentFunction == null) {
-                    throw new SemanticAnalysisException("Return statement not inside a function");
+                // Validate that return is inside a function or method
+                if (currentCallable == null) {
+                    throw new SemanticAnalysisException("Return statement not inside a function or method");
                 }
                 
-                ReturnType retType = currrentFunction.returnType();
+                ReturnType retType = currentCallable.returnType();
                 
-                // Handle void function returns
+                // Handle void function/method returns
                 if (ret.expr().isEmpty()) {
                     if (!(retType instanceof ReturnType.Void)) {
-                        throw new SemanticAnalysisException("Missing return value in non-void function " + currrentFunction.name());
+                        throw new SemanticAnalysisException("Missing return value in non-void " + currentCallable.name());
                     }
                     return List.of(new IrReturn(Optional.empty()));
                 }
                 
-                // Handle non-void function returns
-                IrExpression value = analyzeExpression(ret.expr().get(), table, currrentFunction);
+                // Handle non-void function/method returns
+                IrExpression value = analyzeExpression(ret.expr().get(), table, currentCallable);
                 Type valueType = value.type();
                 
                 if (retType instanceof ReturnType.Void) {
-                    throw new SemanticAnalysisException("Cannot return a value from void function " + currrentFunction.name());
+                    throw new SemanticAnalysisException("Cannot return a value from void " + currentCallable.name());
                 }
                 
                 Type targetType = ((Type) retType);
@@ -300,14 +344,14 @@ public class SemanticAnalyzer {
                 } else if (targetType == BuiltInType.STRING && valueType != BuiltInType.STRING) {
                     value = new IrToString(value);
                 } else if (valueType != targetType) {
-                    throw new SemanticAnalysisException("Type mismatch in return: cannot return " + valueType + " from function " + currrentFunction.name() + " expecting " + targetType);
+                    throw new SemanticAnalysisException("Type mismatch in return: cannot return " + valueType + " from " + currentCallable.name() + " expecting " + targetType);
                 }
                 
                 return List.of(new IrReturn(Optional.of(value)));
             }
             case AstVariableAssignment assign -> {
                 // Analyze the lvalue (can be variable, array subscript, or field access)
-                IrExpression lvalue = analyzeExpression(assign.lvalue(), table, currrentFunction);
+                IrExpression lvalue = analyzeExpression(assign.lvalue(), table, currentCallable);
                 
                 // Verify it's an lvalue (implements IrLvalue)
                 if (!(lvalue instanceof IrLvalue)) {
@@ -320,13 +364,13 @@ public class SemanticAnalyzer {
                 // Special handling: input() as RHS should adopt the target lvalue's type
                 if (assign.expr() instanceof AstInput inputExpr) {
                     // Analyze prompt and coerce to string if needed
-                    IrExpression promptExpr = analyzeExpression(inputExpr.prompt(), table, currrentFunction);
+                    IrExpression promptExpr = analyzeExpression(inputExpr.prompt(), table, currentCallable);
                     if (promptExpr.type() != BuiltInType.STRING) {
                         promptExpr = new IrToString(promptExpr);
                     }
                     valueExpr = new IrInput(targetType, promptExpr);
                 } else {
-                    valueExpr = analyzeExpression(assign.expr(), table, currrentFunction);
+                    valueExpr = analyzeExpression(assign.expr(), table, currentCallable);
                 }
 
                 Type valueType = valueExpr.type();
@@ -381,13 +425,13 @@ public class SemanticAnalyzer {
                     IrExpression valueExpr;
                     // Special handling: input() as initializer should adopt the declared oldType
                     if (decl.expr().get() instanceof AstInput inputExpr) {
-                        IrExpression promptExpr = analyzeExpression(inputExpr.prompt(), table, currrentFunction);
+                        IrExpression promptExpr = analyzeExpression(inputExpr.prompt(), table, currentCallable);
                         if (promptExpr.type() != BuiltInType.STRING) {
                             promptExpr = new IrToString(promptExpr);
                         }
                         valueExpr = new IrInput(targetType, promptExpr);
                     } else {
-                        valueExpr = analyzeExpression(decl.expr().get(), table, currrentFunction);
+                        valueExpr = analyzeExpression(decl.expr().get(), table, currentCallable);
                     }
                     Type valueType = valueExpr.type();
                     
@@ -412,7 +456,7 @@ public class SemanticAnalyzer {
             }
             
             case AstIf astIf -> {
-                IrExpression condition = analyzeExpression(astIf.condition(), table, currrentFunction);
+                IrExpression condition = analyzeExpression(astIf.condition(), table, currentCallable);
                 if (condition.type() != BuiltInType.BOOLEAN) {
                     throw new SemanticAnalysisException("Condition of if statement must be BOOLEAN, found " + condition.type());
                 }
@@ -428,14 +472,14 @@ public class SemanticAnalyzer {
                 // nested scope as a child of ifElseScope, so variables defined in one block are not
                 // accessible in the other, but both can access variables from the parent scope.
                 SymbolTable ifElseScope = enterScope(table);
-                result.addAll(analyzeBlock(astIf.thenBody(), ifElseScope, currrentFunction).statements());
+                result.addAll(analyzeBlock(astIf.thenBody(), ifElseScope, currentCallable).statements());
 
                 if (astIf.elseBody().isPresent()) {
                     result.add(new IrGoto(endLabel));
                     result.add(new IrBranchTarget(elseLabel));
 
                     // Use the same parent scope for else block
-                    result.addAll(analyzeBlock(astIf.elseBody().get(), ifElseScope, currrentFunction).statements());
+                    result.addAll(analyzeBlock(astIf.elseBody().get(), ifElseScope, currentCallable).statements());
                     result.add(new IrBranchTarget(endLabel));
                 } else {
                     result.add(new IrBranchTarget(endLabel));
@@ -453,7 +497,7 @@ public class SemanticAnalyzer {
 
                 result.add(new IrBranchTarget(startLabel));
 
-                IrExpression condition = analyzeExpression(astWhile.condition(), whileScope, currrentFunction);
+                IrExpression condition = analyzeExpression(astWhile.condition(), whileScope, currentCallable);
                 if (condition.type() != BuiltInType.BOOLEAN) {
                     throw new SemanticAnalysisException("Condition of while loop must be BOOLEAN, found " + condition.type());
                 }
@@ -461,7 +505,7 @@ public class SemanticAnalyzer {
 
                 result.add(new IrBranch(condition, endLabel));
 
-                result.addAll(analyzeBlock(astWhile.body(), whileScope, currrentFunction).statements());
+                result.addAll(analyzeBlock(astWhile.body(), whileScope, currentCallable).statements());
 
                 result.add(new IrGoto(startLabel));
                 result.add(new IrBranchTarget(endLabel));
@@ -497,14 +541,14 @@ public class SemanticAnalyzer {
                 
                 // Create desugared AstFor and analyze it
                 AstFor desugaredFor = new AstFor(init, cond, update, pascalFor.body());
-                return analyzeStatement(desugaredFor, table, currrentFunction);
+                return analyzeStatement(desugaredFor, table, currentCallable);
             }
             case AstFor astFor -> {
                 SymbolTable loopScope = enterScope(table);
                 List<IrStatement> result = new ArrayList<>();
 
                 if (astFor.init().isPresent()) {
-                    List<IrStatement> initIr = analyzeStatement(astFor.init().get(), loopScope, currrentFunction);
+                    List<IrStatement> initIr = analyzeStatement(astFor.init().get(), loopScope, currentCallable);
                     if (initIr != null) {
                         result.addAll(initIr);
                     }
@@ -516,7 +560,7 @@ public class SemanticAnalyzer {
                 result.add(new IrBranchTarget(startLabel));
 
                 if (astFor.condition().isPresent()) {
-                    IrExpression condition = analyzeExpression(astFor.condition().get(), loopScope, currrentFunction);
+                    IrExpression condition = analyzeExpression(astFor.condition().get(), loopScope, currentCallable);
                     if (condition.type() != BuiltInType.BOOLEAN) {
                         throw new SemanticAnalysisException("Condition of for loop must be BOOLEAN, found " + condition.type());
                     }
@@ -524,10 +568,10 @@ public class SemanticAnalyzer {
                     result.add(new IrBranch(condition, endLabel));
                 }
 
-                result.addAll(analyzeBlock(astFor.body(), loopScope, currrentFunction).statements());
+                result.addAll(analyzeBlock(astFor.body(), loopScope, currentCallable).statements());
 
                 if (astFor.update().isPresent()) {
-                    List<IrStatement> updateIr = analyzeStatement(astFor.update().get(), loopScope, currrentFunction);
+                    List<IrStatement> updateIr = analyzeStatement(astFor.update().get(), loopScope, currentCallable);
                     if (updateIr != null) {
                         result.addAll(updateIr);
                     }
@@ -540,7 +584,7 @@ public class SemanticAnalyzer {
             }
             case AstIncrement increment -> {
                 // Analyze increment as an expression, then wrap it as a statement
-                IrExpression irExpr = analyzeExpression(increment, table, currrentFunction);
+                IrExpression irExpr = analyzeExpression(increment, table, currentCallable);
                 return List.of(new IrExpressionStatement(irExpr));
             }
             default -> throw new SemanticAnalysisException("Unknown statement oldType: " + astStatement.getClass().getSimpleName());
@@ -551,18 +595,18 @@ public class SemanticAnalyzer {
      * Analyzes an AST expression and generates an IR expression.
      * @param expr The AST expression to analyze.
      * @param table The symbol table.
-     * @param currentFunction The current function.
+     * @param currentCallable The current function or method.
      * @return The generated IR expression.
      * @throws SemanticAnalysisException If there is a semantic analysis error.
      */
-    public IrExpression analyzeExpression(AstExpression expr, SymbolTable table, Function currentFunction) throws SemanticAnalysisException{
+    public IrExpression analyzeExpression(AstExpression expr, SymbolTable table, Callable currentCallable) throws SemanticAnalysisException{
         if (expr == null) {
             throw new SemanticAnalysisException("Cannot analyze null expression");
         }
         switch(expr){
             case AstBinary binary -> {
-                IrExpression left = analyzeExpression(binary.left(), table, currentFunction);
-                IrExpression right = analyzeExpression(binary.right(), table, currentFunction);
+                IrExpression left = analyzeExpression(binary.left(), table, currentCallable);
+                IrExpression right = analyzeExpression(binary.right(), table, currentCallable);
                 
                 return switch (binary.op()) {
                     case ADD -> {
@@ -634,7 +678,7 @@ public class SemanticAnalyzer {
                 };
             }
             case AstUnary unary -> {
-                IrExpression inner = analyzeExpression(unary.expr(), table, currentFunction);
+                IrExpression inner = analyzeExpression(unary.expr(), table, currentCallable);
                 return switch (unary.op()) {
                     case NEGATE -> {
                         // Negate must be INT or DOUBLE
@@ -671,44 +715,15 @@ public class SemanticAnalyzer {
                 if (func.returnType() instanceof ReturnType.Void) {
                     throw new SemanticAnalysisException("Cannot use void function call as an expression: " + call.name());
                 } else if (func.returnType() instanceof Type t && t != BuiltInType.VOID) {
-                    List<IrExpression> irArgs = new ArrayList<>();
-                    List<Type> paramTypes = func.parameterTypes();
-                    
-                    // Validate argument count
-                    if (call.args().size() != paramTypes.size()) {
-                        throw new SemanticAnalysisException(
-                            "Function " + func.name() + " expects " + paramTypes.size() +
-                            " arguments but got " + call.args().size());
-                    }
-                    
-                    // Analyze arguments and widen/convert them to match function signature
-                    for (int i = 0; i < call.args().size(); i++) {
-                        IrExpression arg = analyzeExpression(call.args().get(i), table, currentFunction);
-                        Type argType = arg.type();
-                        Type paramType = paramTypes.get(i);
-                        
-                        // Widen int to double if needed
-                        if (argType == BuiltInType.INT && paramType == BuiltInType.DOUBLE) {
-                            arg = new IrWiden(arg);
-                        }
-                        // Convert to string if needed
-                        else if (paramType == BuiltInType.STRING && argType != BuiltInType.STRING) {
-                            arg = new IrToString(arg);
-                        }
-                        // Error if types don't match and can't be widened/converted
-                        else if (argType != paramType) {
-                            throw new SemanticAnalysisException("Type mismatch in function call: argument " + (i+1) + " has oldType " + argType + " but function expects " + paramType);
-                        }
-                        
-                        irArgs.add(arg);
-                    }
+                    List<IrExpression> irArgs = analyzeArguments(call.args(), func.parameterTypes(), table, currentCallable,
+                        "Function " + func.name());
                     return new IrFunctionCall(t, func.name(), irArgs);
                 } else {
                     throw new SemanticAnalysisException("Cannot use void function call as an expression: " + call.name());
                 }
             }
             case AstCast cast -> {
-                IrExpression inner = analyzeExpression(cast.expr(), table, currentFunction);
+                IrExpression inner = analyzeExpression(cast.expr(), table, currentCallable);
                 Type sourceType = inner.type();
                 Type targetType = cast.targetType();
                 
@@ -819,7 +834,7 @@ public class SemanticAnalyzer {
             }
             case AstIncrement increment -> {
                 // Analyze the lvalue (can be variable, array subscript, or field access)
-                IrExpression lvalue = analyzeExpression(increment.lvalue(), table, currentFunction);
+                IrExpression lvalue = analyzeExpression(increment.lvalue(), table, currentCallable);
                 
                 // Verify it's an lvalue
                 if (!(lvalue instanceof IrLvalue)) {
@@ -836,7 +851,7 @@ public class SemanticAnalyzer {
             }
             case AstInput input -> {
                 // Analyze prompt and coerce to string if needed
-                IrExpression promptExpr = analyzeExpression(input.prompt(), table, currentFunction);
+                IrExpression promptExpr = analyzeExpression(input.prompt(), table, currentCallable);
                 if (promptExpr.type() != BuiltInType.STRING) {
                     promptExpr = new IrToString(promptExpr);
                 }
@@ -852,18 +867,18 @@ public class SemanticAnalyzer {
                     Optional<? extends Variable> mathVar = table.resolveVariable("Math");
                     if (mathVar.isEmpty()) {
                         // Built-in Math methods
-                        return handleBuiltInMathMethod(methodName, args, table, currentFunction);
+                        return handleBuiltInMathMethod(methodName, args, table, currentCallable);
                     }
                     // If Math is a variable, fall through to normal handling
                 }
                 
                 // Analyze the record expression
-                IrExpression recordExpr = analyzeExpression(methodCall.record(), table, currentFunction);
+                IrExpression recordExpr = analyzeExpression(methodCall.record(), table, currentCallable);
                 Type recordType = recordExpr.type();
                 
                 // Special case: String methods
                 if (recordType == BuiltInType.STRING) {
-                    return handleBuiltInStringMethod(methodName, args, recordExpr, table, currentFunction);
+                    return handleBuiltInStringMethod(methodName, args, recordExpr, table, currentCallable);
                 }
                 
                 // Special case: System.exit()
@@ -874,7 +889,7 @@ public class SemanticAnalyzer {
                         if (args.size() != 1) {
                             throw new SemanticAnalysisException("System.exit() expects 1 argument, got " + args.size());
                         }
-                        IrExpression exitCode = analyzeExpression(args.get(0), table, currentFunction);
+                        IrExpression exitCode = analyzeExpression(args.get(0), table, currentCallable);
                         if (exitCode.type() != BuiltInType.INT) {
                             throw new SemanticAnalysisException("System.exit() expects int argument, got " + exitCode.type());
                         }
@@ -889,7 +904,7 @@ public class SemanticAnalyzer {
                 }
                 
                 RecordType rt = (RecordType) recordType;
-                GlobalSymbolTable globalTable = getGlobalSymbolTable(table);
+                GlobalSymbolTable globalTable = extractGlobalSymbolTable(table);
                 RecordSymbolTable recordTable = globalTable.resolveRecord(rt.name())
                     .orElseThrow(() -> new SemanticAnalysisException("Record type not found: " + rt.name()));
                 
@@ -897,32 +912,9 @@ public class SemanticAnalyzer {
                 Method method = recordTable.resolveMethod(methodName)
                     .orElseThrow(() -> new SemanticAnalysisException("Method " + methodName + " not found in record " + rt.name()));
                 
-                // Verify argument count matches parameter count
-                List<Type> paramTypes = method.parameterTypes();
-                if (args.size() != paramTypes.size()) {
-                    throw new SemanticAnalysisException("Method " + methodName + " expects " + paramTypes.size() + 
-                        " arguments but got " + args.size());
-                }
-                
                 // Analyze and type-check arguments
-                List<IrExpression> irArgs = new ArrayList<>();
-                for (int i = 0; i < args.size(); i++) {
-                    IrExpression arg = analyzeExpression(args.get(i), table, currentFunction);
-                    Type argType = arg.type();
-                    Type paramType = paramTypes.get(i);
-                    
-                    // Apply widening/conversion rules
-                    if (argType == BuiltInType.INT && paramType == BuiltInType.DOUBLE) {
-                        arg = new IrWiden(arg);
-                    } else if (paramType == BuiltInType.STRING && argType != BuiltInType.STRING) {
-                        arg = new IrToString(arg);
-                    } else if (argType != paramType) {
-                        throw new SemanticAnalysisException("Type mismatch in method call: argument " + (i+1) + 
-                            " has type " + argType + " but method expects " + paramType);
-                    }
-                    
-                    irArgs.add(arg);
-                }
+                List<IrExpression> irArgs = analyzeArguments(args, method.parameterTypes(), table, currentCallable,
+                    "Method " + methodName + " in record " + rt.name());
                 
                 // Get return type
                 Type returnType = switch (method.returnType()) {
@@ -933,24 +925,28 @@ public class SemanticAnalyzer {
                 return new IrMethodCall(recordExpr, methodName, irArgs, returnType);
             }
             case AstArrayConstruction arrayConstruction -> {
-                // Analyze the size expression (must be int)
-                IrExpression sizeExpr = analyzeExpression(arrayConstruction.size(), table, currentFunction);
-                if (sizeExpr.type() != BuiltInType.INT) {
-                    throw new SemanticAnalysisException("Array size must be int, found: " + sizeExpr.type());
+                // Analyze all dimension expressions (each must be int)
+                List<IrExpression> dimensionExprs = new ArrayList<>();
+                for (AstExpression dimExpr : arrayConstruction.dimensions()) {
+                    IrExpression irDim = analyzeExpression(dimExpr, table, currentCallable);
+                    if (irDim.type() != BuiltInType.INT) {
+                        throw new SemanticAnalysisException("Array dimension must be int, found: " + irDim.type());
+                    }
+                    dimensionExprs.add(irDim);
                 }
                 
-                // Verify elementType is valid (not void)
-                Type elementType = arrayConstruction.elementType();
-                if (elementType == BuiltInType.VOID) {
+                // Verify baseType is valid (not void)
+                ScalarType baseType = arrayConstruction.baseType();
+                if (baseType == BuiltInType.VOID) {
                     throw new SemanticAnalysisException("Cannot create array of void type");
                 }
                 
-                // Multi-dimensional arrays are supported via ArrayType.of() pattern
-                return new IrArrayConstruction(elementType, sizeExpr);
+                // Create IrArrayConstruction with baseType and dimensions
+                return new IrArrayConstruction(baseType, dimensionExprs);
             }
             case AstArraySubscript arraySubscript -> {
                 // Analyze the array expression
-                IrExpression arrayExpr = analyzeExpression(arraySubscript.array(), table, currentFunction);
+                IrExpression arrayExpr = analyzeExpression(arraySubscript.array(), table, currentCallable);
                 Type arrayType = arrayExpr.type();
                 
                 // Verify it's an ArrayType
@@ -959,7 +955,7 @@ public class SemanticAnalyzer {
                 }
                 
                 // Analyze the index expression (must be int)
-                IrExpression indexExpr = analyzeExpression(arraySubscript.index(), table, currentFunction);
+                IrExpression indexExpr = analyzeExpression(arraySubscript.index(), table, currentCallable);
                 if (indexExpr.type() != BuiltInType.INT) {
                     throw new SemanticAnalysisException("Array index must be int, found: " + indexExpr.type());
                 }
@@ -995,7 +991,7 @@ public class SemanticAnalyzer {
                 }
                 
                 // Analyze the record expression
-                IrExpression recordExpr = analyzeExpression(fieldAccess.record(), table, currentFunction);
+                IrExpression recordExpr = analyzeExpression(fieldAccess.record(), table, currentCallable);
                 Type recordType = recordExpr.type();
                 
                 // Special case: Array .length field
@@ -1011,7 +1007,7 @@ public class SemanticAnalyzer {
                 
                 RecordType rt = (RecordType) recordType;
                 // Get the global symbol table to resolve records
-                GlobalSymbolTable globalTable = getGlobalSymbolTable(table);
+                GlobalSymbolTable globalTable = extractGlobalSymbolTable(table);
                 
                 RecordSymbolTable recordTable = globalTable.resolveRecord(rt.name())
                     .orElseThrow(() -> new SemanticAnalysisException("Record type not found: " + rt.name()));
@@ -1024,7 +1020,7 @@ public class SemanticAnalyzer {
             }
             case AstRecordConstruction recordConstruction -> {
                 // Resolve record name via GlobalSymbolTable
-                GlobalSymbolTable globalTable = getGlobalSymbolTable(table);
+                GlobalSymbolTable globalTable = extractGlobalSymbolTable(table);
                 String recordName = recordConstruction.recordName();
                 
                 RecordSymbolTable recordTable = globalTable.resolveRecord(recordName)
@@ -1042,25 +1038,14 @@ public class SemanticAnalyzer {
                 }
                 
                 // Analyze each argument expression and type check
-                List<IrExpression> irArgs = new ArrayList<>();
-                for (int i = 0; i < args.size(); i++) {
-                    String fieldName = fieldNames.get(i);
-                    Type fieldType = fields.get(fieldName);
-                    IrExpression arg = analyzeExpression(args.get(i), table, currentFunction);
-                    Type argType = arg.type();
-                    
-                    // Type check with widening/conversion rules
-                    if (argType == BuiltInType.INT && fieldType == BuiltInType.DOUBLE) {
-                        arg = new IrWiden(arg);
-                    } else if (fieldType == BuiltInType.STRING && argType != BuiltInType.STRING) {
-                        arg = new IrToString(arg);
-                    } else if (argType != fieldType) {
-                        throw new SemanticAnalysisException("Type mismatch in record construction: argument " + (i+1) + 
-                            " (field " + fieldName + ") has type " + argType + " but record expects " + fieldType);
-                    }
-                    
-                    irArgs.add(arg);
+                // Build list of field types in order
+                List<Type> fieldTypes = new ArrayList<>();
+                for (String fieldName : fieldNames) {
+                    fieldTypes.add(fields.get(fieldName));
                 }
+                
+                List<IrExpression> irArgs = analyzeArguments(args, fieldTypes, table, currentCallable,
+                    "Record " + recordName + " construction");
                 
                 // Create RecordType with the actual field map
                 RecordType recordType = new RecordType(recordName, fields);
@@ -1069,6 +1054,55 @@ public class SemanticAnalyzer {
             }
             default -> throw new SemanticAnalysisException("Unknown expression oldType: " + expr.getClass().getSimpleName());
         }
+    }
+
+    /**
+     * Helper method to analyze and type-check a list of arguments against parameter types.
+     * Applies widening (int -> double) and conversion (any -> string) rules as needed.
+     * @param args The AST expressions to analyze.
+     * @param paramTypes The expected parameter types.
+     * @param table The symbol table.
+     * @param currentCallable The current function or method.
+     * @param contextName Name for error messages (e.g., "function call", "method call").
+     * @return List of analyzed and type-checked IR expressions.
+     * @throws SemanticAnalysisException If argument count doesn't match or types are incompatible.
+     */
+    private List<IrExpression> analyzeArguments(
+            List<AstExpression> args,
+            List<Type> paramTypes,
+            SymbolTable table,
+            Callable currentCallable,
+            String contextName) throws SemanticAnalysisException {
+        // Validate argument count
+        if (args.size() != paramTypes.size()) {
+            throw new SemanticAnalysisException(
+                contextName + " expects " + paramTypes.size() +
+                " arguments but got " + args.size());
+        }
+        
+        List<IrExpression> irArgs = new ArrayList<>();
+        for (int i = 0; i < args.size(); i++) {
+            IrExpression arg = analyzeExpression(args.get(i), table, currentCallable);
+            Type argType = arg.type();
+            Type paramType = paramTypes.get(i);
+            
+            // Widen int to double if needed
+            if (argType == BuiltInType.INT && paramType == BuiltInType.DOUBLE) {
+                arg = new IrWiden(arg);
+            }
+            // Convert to string if needed
+            else if (paramType == BuiltInType.STRING && argType != BuiltInType.STRING) {
+                arg = new IrToString(arg);
+            }
+            // Error if types don't match and can't be widened/converted
+            else if (argType != paramType) {
+                throw new SemanticAnalysisException("Type mismatch in " + contextName + ": argument " + (i+1) + 
+                    " has type " + argType + " but expects " + paramType);
+            }
+            
+            irArgs.add(arg);
+        }
+        return irArgs;
     }
 
     /**
@@ -1124,12 +1158,12 @@ public class SemanticAnalyzer {
      * @param methodName The name of the Math method.
      * @param args The arguments to the Math method.
      * @param table The symbol table.
-     * @param currentFunction The current function.
+     * @param currentCallable The current function or method.
      * @return The generated IR expression.
      * @throws SemanticAnalysisException If there is a semantic analysis error.
      */
     private IrExpression handleBuiltInMathMethod(String methodName, List<AstExpression> args, 
-                                                 SymbolTable table, Function currentFunction) throws SemanticAnalysisException {
+                                                 SymbolTable table, Callable currentCallable) throws SemanticAnalysisException {
         // Create placeholder for Math
         IrExpression mathPlaceholder = new IrVariable(new GlobalVariable(BuiltInType.STRING, "Math"));
         
@@ -1148,7 +1182,7 @@ public class SemanticAnalyzer {
                 }
                 
                 for (AstExpression arg : args) {
-                    IrExpression irArg = analyzeExpression(arg, table, currentFunction);
+                    IrExpression irArg = analyzeExpression(arg, table, currentCallable);
                     // Convert int to double if needed
                     if (irArg.type() == BuiltInType.INT) {
                         irArg = new IrWiden(irArg);
@@ -1170,12 +1204,12 @@ public class SemanticAnalyzer {
      * @param args The arguments to the String method.
      * @param stringExpr The string expression.
      * @param table The symbol table.
-     * @param currentFunction The current function.
+     * @param currentCallable The current function or method.
      * @return The generated IR expression.
      * @throws SemanticAnalysisException If there is a semantic analysis error.
      */
     private IrExpression handleBuiltInStringMethod(String methodName, List<AstExpression> args,
-                                                   IrExpression stringExpr, SymbolTable table, Function currentFunction) throws SemanticAnalysisException {
+                                                   IrExpression stringExpr, SymbolTable table, Callable currentCallable) throws SemanticAnalysisException {
         List<IrExpression> irArgs = new ArrayList<>();
         Type returnType;
         
@@ -1191,7 +1225,7 @@ public class SemanticAnalyzer {
                 if (args.size() != 1) {
                     throw new SemanticAnalysisException("String.indexOf() expects 1 argument, got " + args.size());
                 }
-                IrExpression arg = analyzeExpression(args.get(0), table, currentFunction);
+                IrExpression arg = analyzeExpression(args.get(0), table, currentCallable);
                 if (arg.type() != BuiltInType.STRING) {
                     throw new SemanticAnalysisException("String.indexOf() expects string argument, got " + arg.type());
                 }
@@ -1202,8 +1236,8 @@ public class SemanticAnalyzer {
                 if (args.size() != 2) {
                     throw new SemanticAnalysisException("String.substring() expects 2 arguments, got " + args.size());
                 }
-                IrExpression arg1 = analyzeExpression(args.get(0), table, currentFunction);
-                IrExpression arg2 = analyzeExpression(args.get(1), table, currentFunction);
+                IrExpression arg1 = analyzeExpression(args.get(0), table, currentCallable);
+                IrExpression arg2 = analyzeExpression(args.get(1), table, currentCallable);
                 if (arg1.type() != BuiltInType.INT) {
                     throw new SemanticAnalysisException("String.substring() expects int for first argument, got " + arg1.type());
                 }

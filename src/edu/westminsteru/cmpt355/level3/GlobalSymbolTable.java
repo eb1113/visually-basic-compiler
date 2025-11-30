@@ -113,4 +113,12 @@ public class GlobalSymbolTable implements SymbolTable {
         }
     }
 
+    /**
+     * Returns all record names defined in this symbol table.
+     * @return A set of all record names.
+     */
+    public java.util.Set<String> getAllRecordNames() {
+        return java.util.Set.copyOf(recordTable.keySet());
+    }
+
 }

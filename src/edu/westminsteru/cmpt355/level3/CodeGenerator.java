@@ -6,8 +6,11 @@ import edu.westminsteru.cmpt355.level3.ir.*;
 import edu.westminsteru.cmpt355.level3.lang.*;
 
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /** Code generation stage of the compiler: given an AST, print jasm code */
@@ -17,6 +20,8 @@ public class CodeGenerator {
     private final PrintWriter out;
     /** The IR of the program */
     private final IrProgram program;
+    /** The global symbol table */
+    private final GlobalSymbolTable globalTable;
     /** Name of the original source file */
     private final String sourceFilename;
     /** Name of the class being compiled */
@@ -27,6 +32,7 @@ public class CodeGenerator {
     /** Builder class for CodeGenerator instances */
     public static class Builder {
     private IrProgram program;
+        private GlobalSymbolTable globalTable;
         private String sourceFilename;
         private String outClassName;
         private PrintWriter out = new PrintWriter(System.out);
@@ -35,6 +41,11 @@ public class CodeGenerator {
 
         public Builder program(IrProgram program) {
             this.program = program;
+            return this;
+        }
+
+        public Builder globalTable(GlobalSymbolTable globalTable) {
+            this.globalTable = globalTable;
             return this;
         }
 
@@ -56,21 +67,25 @@ public class CodeGenerator {
         public CodeGenerator build() {
             if (program == null)
                 throw new IllegalStateException("Program must be specified");
+            if (globalTable == null)
+                throw new IllegalStateException("GlobalSymbolTable must be specified");
             if (outClassName == null)
                 throw new IllegalStateException("Output class name must be specified");
             if (out == null)
                 throw new IllegalStateException("Output must be specified");
-            return new CodeGenerator(program, sourceFilename, outClassName, out);
+            return new CodeGenerator(program, globalTable, sourceFilename, outClassName, out);
         }
     }
 
     private CodeGenerator(
         IrProgram program,
+        GlobalSymbolTable globalTable,
         String sourceFilename,
         String outClassName,
         PrintWriter out
     ) {
         this.program = program;
+        this.globalTable = globalTable;
         this.sourceFilename = sourceFilename;
         this.outClassName = outClassName;
         this.out = out;
@@ -195,9 +210,28 @@ public class CodeGenerator {
                 case STRING -> { /* Already a string, no conversion needed */ }
                 default -> throw new IllegalArgumentException("Cannot convert " + type + " to string");
             }
-        } else {
-            // ArrayType or RecordType - use Object.toString()
+        } else if (type instanceof ArrayType) {
+            // Array - call appropriate arrayToString helper
+            ArrayType at = (ArrayType) type;
+            Type componentType = at.componentType();
+            
+            if (componentType instanceof BuiltInType builtIn) {
+                switch (builtIn) {
+                    case INT -> out.printf("    invokestatic %s arrayToStringInt ([I)Ljava/lang/String;%n", outClassName);
+                    case DOUBLE -> out.printf("    invokestatic %s arrayToStringDouble ([D)Ljava/lang/String;%n", outClassName);
+                    case BOOLEAN -> out.printf("    invokestatic %s arrayToStringBoolean ([Z)Ljava/lang/String;%n", outClassName);
+                    case STRING -> out.printf("    invokestatic %s arrayToStringString ([Ljava/lang/String;)Ljava/lang/String;%n", outClassName);
+                    default -> out.printf("    invokestatic %s arrayToStringObject ([Ljava/lang/Object;)Ljava/lang/String;%n", outClassName);
+                }
+            } else {
+                // Array of arrays or records
+                out.printf("    invokestatic %s arrayToStringObject ([Ljava/lang/Object;)Ljava/lang/String;%n", outClassName);
+            }
+        } else if (type instanceof RecordType) {
+            // Record - call its toString() method
             out.println("    invokevirtual java/lang/Object toString ()Ljava/lang/String;");
+        } else {
+            throw new IllegalArgumentException("Cannot convert " + type + " to string");
         }
     }
 
@@ -264,6 +298,12 @@ public class CodeGenerator {
         for (IrFunctionDeclaration funcDecl : program.functions()) {
             generateFunctionMethod(funcDecl);
         }
+
+        // Generate record classes
+        generateRecordClasses();
+
+        // Generate array printing helpers
+        generateArrayPrintHelpers();
 
         out.flush();
     }
@@ -429,6 +469,7 @@ public class CodeGenerator {
     }
 
     private void generateAssignment(IrVariableAssignment assign) {
+        // Generate value expression first
         generateExpression(assign.value());
         
         // Handle different types of lvalues
@@ -442,9 +483,61 @@ public class CodeGenerator {
                 String descriptor = var.variable().type().getDescriptor();
                 out.printf("    putstatic %s %s %s%n", outClassName, var.variable().name(), descriptor);
             }
+        } else if (assign.lvalue() instanceof IrArraySubscript arraySubscript) {
+            // Array subscript assignment
+            // Need: array, index, value on stack for *astore
+            // Strategy: generate array and index first, then value
+            
+            // Generate array expression
+            generateExpression(arraySubscript.array());
+            // Stack: [array]
+            
+            // Generate index expression
+            generateExpression(arraySubscript.index());
+            // Stack: [array, index]
+            
+            // Generate value expression
+            generateExpression(assign.value());
+            // Stack: [array, index, value] - correct order for *astore
+            
+            Type elementType = arraySubscript.elementType();
+            if (elementType instanceof BuiltInType builtIn) {
+                switch (builtIn) {
+                    case INT -> out.println("    iastore");
+                    case DOUBLE -> out.println("    dastore");
+                    case BOOLEAN -> out.println("    bastore");
+                    case STRING -> out.println("    aastore");
+                    default -> throw new IllegalArgumentException("Cannot store array element of type: " + elementType);
+                }
+            } else {
+                // ArrayType or RecordType - use aastore
+                out.println("    aastore");
+            }
+        } else if (assign.lvalue() instanceof IrFieldAccess fieldAccess) {
+            // Field access assignment
+            // Need: record, value on stack for putfield
+            // Strategy: generate record first, then value
+            
+            // Generate record expression
+            generateExpression(fieldAccess.record());
+            // Stack: [record]
+            
+            // Generate value expression
+            generateExpression(assign.value());
+            // Stack: [record, value] - correct order for putfield
+            
+            Type recordType = fieldAccess.record().type();
+            
+            // Special case: Math.PI and Math.E (static fields) - not assignable, skip
+            if (recordType instanceof RecordType rt) {
+                String recordName = rt.name().replace('.', '/');
+                String fieldDescriptor = fieldAccess.fieldType().getDescriptor();
+                out.printf("    putfield %s %s %s%n", recordName, fieldAccess.fieldName(), fieldDescriptor);
+            } else {
+                throw new IllegalArgumentException("Field access assignment requires record type, found: " + recordType);
+            }
         } else {
-            // TODO: Handle array subscripts and field accesses
-            throw new InternalCompilerException("Assignment to non-variable lvalue not yet implemented: " + assign.lvalue());
+            throw new InternalCompilerException("Assignment to unknown lvalue type: " + assign.lvalue().getClass().getSimpleName());
         }
     }
 
@@ -651,6 +744,182 @@ public class CodeGenerator {
                 // Use emitCall to leave result on stack (for expressions)
                 emitCall(call);
             }
+            case IrArrayConstruction arrayConstruction -> {
+                List<IrExpression> dimensions = arrayConstruction.dimensions();
+                ScalarType baseType = arrayConstruction.baseType();
+                Type arrayType = arrayConstruction.type();
+                
+                if (dimensions.size() == 1) {
+                    // Single dimension array - use newarray or anewarray
+                    generateExpression(dimensions.get(0));
+                    
+                    if (baseType instanceof BuiltInType builtIn) {
+                        switch (builtIn) {
+                            case INT -> out.println("    newarray int");
+                            case DOUBLE -> out.println("    newarray double");
+                            case BOOLEAN -> out.println("    newarray boolean");
+                            case STRING -> out.println("    anewarray Ljava/lang/String;");
+                            default -> throw new IllegalArgumentException("Cannot create array of type: " + baseType);
+                        }
+                    } else if (baseType instanceof RecordType rt) {
+                        // Array of records - use anewarray with record descriptor
+                        String recordName = rt.name().replace('.', '/');
+                        out.printf("    anewarray L%s;%n", recordName);
+                    } else {
+                        throw new IllegalArgumentException("Cannot create array of type: " + baseType);
+                    }
+                } else {
+                    // Multi-dimensional array - use multianewarray
+                    // Generate all dimension expressions (on stack in order)
+                    for (IrExpression dim : dimensions) {
+                        generateExpression(dim);
+                    }
+                    
+                    // Get the descriptor for the full array type
+                    String descriptor = arrayType.getDescriptor();
+                    int dimCount = dimensions.size();
+                    
+                    out.printf("    multianewarray %s %d%n", descriptor, dimCount);
+                }
+            }
+            case IrArraySubscript arraySubscript -> {
+                // Generate array and index expressions
+                generateExpression(arraySubscript.array());
+                generateExpression(arraySubscript.index());
+                
+                // Load element based on element type
+                Type elementType = arraySubscript.elementType();
+                if (elementType instanceof BuiltInType builtIn) {
+                    switch (builtIn) {
+                        case INT -> out.println("    iaload");
+                        case DOUBLE -> out.println("    daload");
+                        case BOOLEAN -> out.println("    baload");
+                        case STRING -> out.println("    aaload");
+                        default -> throw new IllegalArgumentException("Cannot load array element of type: " + elementType);
+                    }
+                } else {
+                    // ArrayType or RecordType - use aaload
+                    out.println("    aaload");
+                }
+            }
+            case IrRecordConstruction recordConstruction -> {
+                // Generate all argument expressions
+                for (IrExpression arg : recordConstruction.args()) {
+                    generateExpression(arg);
+                }
+                
+                // Create new record instance
+                String recordName = recordConstruction.name().replace('.', '/');
+                out.printf("    new %s%n", recordName);
+                
+                // Duplicate reference for constructor call
+                out.println("    dup");
+                
+                // Build constructor descriptor
+                String paramTypes = recordConstruction.args().stream()
+                    .map(a -> a.type().getDescriptor())
+                    .collect(Collectors.joining(""));
+                
+                // Call constructor
+                out.printf("    invokespecial %s <init> (%s)V%n", recordName, paramTypes);
+                // Object reference remains on stack
+            }
+            case IrFieldAccess fieldAccess -> {
+                Type recordType = fieldAccess.record().type();
+                String fieldName = fieldAccess.fieldName();
+                
+                // Special case: Math.PI and Math.E (static fields) - check before generating expression
+                if (fieldAccess.record() instanceof IrVariable var) {
+                    String varName = var.variable().name();
+                    if ("Math".equals(varName) && ("PI".equals(fieldName) || "E".equals(fieldName))) {
+                        // Check if Math is actually defined as a variable in global scope
+                        Optional<? extends Variable> mathVar = globalTable.resolveVariable("Math");
+                        if (mathVar.isEmpty()) {
+                            // Built-in Math - use static field access (no need to generate record expression)
+                            out.printf("    getstatic java/lang/Math %s D%n", fieldName);
+                            return;
+                        }
+                        // If Math is defined as a variable, fall through to normal field access
+                    }
+                }
+                
+                // Generate record expression
+                generateExpression(fieldAccess.record());
+                
+                // Special case: array.length
+                if (recordType instanceof ArrayType && "length".equals(fieldName)) {
+                    out.println("    arraylength");
+                    return;
+                }
+                
+                // Normal case: record field access
+                if (!(recordType instanceof RecordType)) {
+                    throw new IllegalArgumentException("Field access requires record type, found: " + recordType);
+                }
+                
+                RecordType rt = (RecordType) recordType;
+                String recordName = rt.name().replace('.', '/');
+                String fieldDescriptor = fieldAccess.fieldType().getDescriptor();
+                
+                out.printf("    getfield %s %s %s%n", recordName, fieldName, fieldDescriptor);
+            }
+            case IrMethodCall methodCall -> {
+                // Generate record expression (receiver)
+                generateExpression(methodCall.record());
+                
+                // Generate all argument expressions
+                for (IrExpression arg : methodCall.args()) {
+                    generateExpression(arg);
+                }
+                
+                Type recordType = methodCall.record().type();
+                String methodName = methodCall.methodName();
+                
+                // Special case: Math methods
+                if (methodCall.record() instanceof IrVariable var && 
+                    var.variable() instanceof GlobalVariable gv && 
+                    "Math".equals(gv.name())) {
+                    String paramTypes = methodCall.args().stream()
+                        .map(a -> a.type().getDescriptor())
+                        .collect(Collectors.joining(""));
+                    String returnType = methodCall.returnType().getDescriptor();
+                    out.printf("    invokestatic java/lang/Math %s (%s)%s%n", methodName, paramTypes, returnType);
+                    return;
+                }
+                
+                // Special case: String methods
+                if (recordType == BuiltInType.STRING) {
+                    String paramTypes = methodCall.args().stream()
+                        .map(a -> a.type().getDescriptor())
+                        .collect(Collectors.joining(""));
+                    String returnType = methodCall.returnType().getDescriptor();
+                    out.printf("    invokevirtual java/lang/String %s (%s)%s%n", methodName, paramTypes, returnType);
+                    return;
+                }
+                
+                // Special case: System.exit()
+                if (methodCall.record() instanceof IrVariable var && 
+                    var.variable() instanceof GlobalVariable gv && 
+                    "System".equals(gv.name()) &&
+                    "exit".equals(methodName)) {
+                    out.println("    invokestatic java/lang/System exit (I)V");
+                    return;
+                }
+                
+                // Normal case: record method call
+                if (!(recordType instanceof RecordType)) {
+                    throw new IllegalArgumentException("Method call requires record type, found: " + recordType);
+                }
+                
+                RecordType rt = (RecordType) recordType;
+                String recordName = rt.name().replace('.', '/');
+                String paramTypes = methodCall.args().stream()
+                    .map(a -> a.type().getDescriptor())
+                    .collect(Collectors.joining(""));
+                String returnType = methodCall.returnType().getDescriptor();
+                
+                out.printf("    invokevirtual %s %s (%s)%s%n", recordName, methodName, paramTypes, returnType);
+            }
             case IrIncrement inc -> {
                 // Handle different types of lvalues
                 if (inc.lvalue() instanceof IrVariable var) {
@@ -755,9 +1024,205 @@ public class CodeGenerator {
                     }
                     // Original value is still on stack (from dup before increment)
                 }
+                } else if (inc.lvalue() instanceof IrArraySubscript arraySubscript) {
+                    // Array subscript increment
+                    Type elementType = arraySubscript.elementType();
+                    boolean isPrefix = inc.isPrefix();
+                    
+                    if (elementType != BuiltInType.INT && elementType != BuiltInType.DOUBLE) {
+                        throw new IllegalArgumentException("Increment only works on int and double array elements");
+                    }
+                    
+                    // Load array, index, and current value
+                    generateExpression(arraySubscript.array());
+                    generateExpression(arraySubscript.index());
+                    // Stack: [array, index]
+                    
+                    // Load current value
+                    if (elementType == BuiltInType.INT) {
+                        out.println("    iaload");
+                    } else {
+                        out.println("    daload");
+                    }
+                    // Stack: [array, index, value]
+                    
+                    if (isPrefix) {
+                        // Prefix: increment first, then use new value
+                        if (inc.op() == IncrementOp.INCREMENT) {
+                            if (elementType == BuiltInType.INT) {
+                                out.println("    iconst_1");
+                                out.println("    iadd");
+                            } else {
+                                out.println("    dconst_1");
+                                out.println("    dadd");
+                            }
+                        } else { // DECREMENT
+                            if (elementType == BuiltInType.INT) {
+                                out.println("    iconst_1");
+                                out.println("    isub");
+                            } else {
+                                out.println("    dconst_1");
+                                out.println("    dsub");
+                            }
+                        }
+                        // Stack: [array, index, newValue]
+                        // Duplicate new value for return, then store
+                        if (elementType == BuiltInType.INT) {
+                            out.println("    dup");
+                            out.println("    iastore");
+                        } else {
+                            out.println("    dup2");
+                            out.println("    dastore");
+                        }
+                        // Stack: [newValue] - prefix returns new value
+                    } else {
+                        // Postfix: use old value, then increment
+                        // Duplicate old value first
+                        if (elementType == BuiltInType.INT) {
+                            out.println("    dup");
+                        } else {
+                            out.println("    dup2");
+                        }
+                        // Stack: [array, index, value, value]
+                        
+                        // Increment
+                        if (inc.op() == IncrementOp.INCREMENT) {
+                            if (elementType == BuiltInType.INT) {
+                                out.println("    iconst_1");
+                                out.println("    iadd");
+                            } else {
+                                out.println("    dconst_1");
+                                out.println("    dadd");
+                            }
+                        } else { // DECREMENT
+                            if (elementType == BuiltInType.INT) {
+                                out.println("    iconst_1");
+                                out.println("    isub");
+                            } else {
+                                out.println("    dconst_1");
+                                out.println("    dsub");
+                            }
+                        }
+                        // Stack: [array, index, oldValue, newValue]
+                        
+                        // Store new value: need array, index, newValue
+                        // Swap to get: array, index, newValue, oldValue
+                        if (elementType == BuiltInType.INT) {
+                            out.println("    dup_x2"); // Duplicate newValue below oldValue
+                            out.println("    pop");    // Remove duplicate
+                            out.println("    iastore");
+                        } else {
+                            out.println("    dup2_x2"); // Duplicate newValue below oldValue
+                            out.println("    pop2");    // Remove duplicate
+                            out.println("    dastore");
+                        }
+                        // Stack: [oldValue] - postfix returns old value
+                    }
+                } else if (inc.lvalue() instanceof IrFieldAccess fieldAccess) {
+                    // Field access increment
+                    Type fieldType = fieldAccess.fieldType();
+                    boolean isPrefix = inc.isPrefix();
+                    
+                    if (fieldType != BuiltInType.INT && fieldType != BuiltInType.DOUBLE) {
+                        throw new IllegalArgumentException("Increment only works on int and double fields");
+                    }
+                    
+                    // Load record and current field value
+                    generateExpression(fieldAccess.record());
+                    // Stack: [record]
+                    
+                    Type recordType = fieldAccess.record().type();
+                    if (!(recordType instanceof RecordType)) {
+                        throw new IllegalArgumentException("Field access increment requires record type");
+                    }
+                    
+                    RecordType rt = (RecordType) recordType;
+                    String recordName = rt.name().replace('.', '/');
+                    String fieldDescriptor = fieldAccess.fieldType().getDescriptor();
+                    
+                    // Get current field value
+                    out.printf("    dup%n"); // Duplicate record for later putfield
+                    out.printf("    getfield %s %s %s%n", recordName, fieldAccess.fieldName(), fieldDescriptor);
+                    // Stack: [record, value]
+                    
+                    if (isPrefix) {
+                        // Prefix: increment first, then use new value
+                        if (inc.op() == IncrementOp.INCREMENT) {
+                            if (fieldType == BuiltInType.INT) {
+                                out.println("    iconst_1");
+                                out.println("    iadd");
+                            } else {
+                                out.println("    dconst_1");
+                                out.println("    dadd");
+                            }
+                        } else { // DECREMENT
+                            if (fieldType == BuiltInType.INT) {
+                                out.println("    iconst_1");
+                                out.println("    isub");
+                            } else {
+                                out.println("    dconst_1");
+                                out.println("    dsub");
+                            }
+                        }
+                        // Stack: [record, newValue]
+                        // Duplicate new value for return, then store
+                        if (fieldType == BuiltInType.INT) {
+                            out.println("    dup_x1"); // Duplicate newValue below record
+                            out.println("    swap");   // Swap to get: newValue, record, newValue
+                            out.println("    pop");    // Remove duplicate
+                            out.printf("    putfield %s %s %s%n", recordName, fieldAccess.fieldName(), fieldDescriptor);
+                        } else {
+                            out.println("    dup2_x1"); // Duplicate newValue below record
+                            out.println("    pop2");     // Remove duplicate
+                            out.printf("    putfield %s %s %s%n", recordName, fieldAccess.fieldName(), fieldDescriptor);
+                            out.println("    dup2");     // Duplicate newValue for return
+                        }
+                        // Stack: [newValue] - prefix returns new value
+                    } else {
+                        // Postfix: use old value, then increment
+                        // Duplicate old value first
+                        if (fieldType == BuiltInType.INT) {
+                            out.println("    dup");
+                        } else {
+                            out.println("    dup2");
+                        }
+                        // Stack: [record, value, value]
+                        
+                        // Increment
+                        if (inc.op() == IncrementOp.INCREMENT) {
+                            if (fieldType == BuiltInType.INT) {
+                                out.println("    iconst_1");
+                                out.println("    iadd");
+                            } else {
+                                out.println("    dconst_1");
+                                out.println("    dadd");
+                            }
+                        } else { // DECREMENT
+                            if (fieldType == BuiltInType.INT) {
+                                out.println("    iconst_1");
+                                out.println("    isub");
+                            } else {
+                                out.println("    dconst_1");
+                                out.println("    dsub");
+                            }
+                        }
+                        // Stack: [record, oldValue, newValue]
+                        
+                        // Store new value: swap to get record, newValue, then store
+                        if (fieldType == BuiltInType.INT) {
+                            out.println("    swap"); // Swap oldValue and newValue
+                            out.println("    dup_x1"); // Duplicate newValue below oldValue
+                            out.println("    swap"); // Swap back
+                            out.printf("    putfield %s %s %s%n", recordName, fieldAccess.fieldName(), fieldDescriptor);
+                        } else {
+                            out.println("    dup2_x1"); // Duplicate newValue below oldValue
+                            out.println("    pop2");    // Remove duplicate
+                            out.printf("    putfield %s %s %s%n", recordName, fieldAccess.fieldName(), fieldDescriptor);
+                        }
+                        // Stack: [oldValue] - postfix returns old value
+                    }
                 } else {
-                    // TODO: Handle array subscripts and field accesses
-                    throw new InternalCompilerException("Increment on non-variable lvalue not yet implemented: " + inc.lvalue());
+                    throw new InternalCompilerException("Increment on unknown lvalue type: " + inc.lvalue().getClass().getSimpleName());
                 }
             }
             default -> throw new IllegalArgumentException("Unknown expression: " + expr);
@@ -953,5 +1418,268 @@ public class CodeGenerator {
         out.printf("%s:%n", trueLabel);
         out.println("    iconst_1");
         out.printf("%s:%n", endLabel);
+    }
+
+    /**
+     * Generates JASM code for all record classes.
+     */
+    private void generateRecordClasses() {
+        for (String recordName : globalTable.getAllRecordNames()) {
+            RecordSymbolTable recordTable = globalTable.resolveRecord(recordName)
+                .orElseThrow(() -> new InternalCompilerException("Record " + recordName + " not found"));
+            
+            generateRecordClass(recordName, recordTable);
+        }
+    }
+
+    /**
+     * Generates JASM code for a single record class.
+     */
+    private void generateRecordClass(String recordName, RecordSymbolTable recordTable) {
+        String jvmName = recordName.replace('.', '/');
+        
+        // Class declaration
+        out.printf(".class public %s%n", jvmName);
+        if (sourceFilename != null)
+            out.printf(".source %s%n", sourceFilename);
+        out.println(".super java/lang/Object");
+        out.println();
+        
+        // Generate field declarations (public, non-static)
+        Map<String, Type> fields = recordTable.getFields();
+        List<String> fieldNames = new ArrayList<>(fields.keySet());
+        for (String fieldName : fieldNames) {
+            Type fieldType = fields.get(fieldName);
+            out.printf(".field public %s %s%n", fieldName, fieldType.getDescriptor());
+        }
+        out.println();
+        
+        // Generate constructor
+        generateRecordConstructor(recordName, jvmName, fieldNames, fields);
+        
+        // Generate toString() method
+        generateRecordToString(recordName, jvmName, fieldNames, fields);
+        
+        // Generate user-defined methods
+        // Get method IR bodies from IrProgram (similar to how functions work)
+        List<IrFunctionDeclaration> methodBodies = program.recordMethods().getOrDefault(recordName, List.of());
+        Map<String, Method> methods = recordTable.getMethods();
+        
+        // Match method bodies with method signatures
+        for (IrFunctionDeclaration methodBody : methodBodies) {
+            Method method = methods.get(methodBody.name());
+            if (method != null) {
+                generateRecordMethod(recordName, jvmName, method, methodBody);
+            }
+        }
+    }
+
+    /**
+     * Generates the constructor for a record class.
+     */
+    private void generateRecordConstructor(String recordName, String jvmName, 
+                                          List<String> fieldNames, Map<String, Type> fields) {
+        // Build constructor descriptor
+        String paramTypes = fieldNames.stream()
+            .map(fields::get)
+            .map(Type::getDescriptor)
+            .collect(Collectors.joining(""));
+        
+        out.printf(".method public <init> (%s)V%n", paramTypes);
+        out.println(".code");
+        
+        // Call superclass constructor
+        out.println("    aload_0");
+        out.println("    invokespecial java/lang/Object <init> ()V");
+        
+        // Store each parameter to corresponding field
+        int localIndex = 1; // local 0 is 'this'
+        for (String fieldName : fieldNames) {
+            Type fieldType = fields.get(fieldName);
+            out.println("    aload_0"); // Load 'this'
+            
+            // Load parameter
+            if (fieldType instanceof BuiltInType builtIn) {
+                switch (builtIn) {
+                    case INT, BOOLEAN -> out.printf("    iload %d%n", localIndex);
+                    case DOUBLE -> out.printf("    dload %d%n", localIndex);
+                    case STRING -> out.printf("    aload %d%n", localIndex);
+                    default -> throw new IllegalArgumentException("Cannot load field parameter: " + fieldType);
+                }
+            } else {
+                out.printf("    aload %d%n", localIndex);
+            }
+            
+            // Store to field
+            String fieldDescriptor = fieldType.getDescriptor();
+            out.printf("    putfield %s %s %s%n", jvmName, fieldName, fieldDescriptor);
+            
+            localIndex += fieldType.size();
+        }
+        
+        out.println("    return");
+        out.println(".end code");
+        out.println();
+    }
+
+    /**
+     * Generates the toString() method for a record class.
+     */
+    private void generateRecordToString(String recordName, String jvmName,
+                                       List<String> fieldNames, Map<String, Type> fields) {
+        out.println(".method public toString ()Ljava/lang/String;");
+        out.println(".code");
+        
+        // Start with record name and '['
+        out.printf("    ldc \"%s[\"%n", recordName);
+        
+        boolean first = true;
+        for (String fieldName : fieldNames) {
+            if (!first) {
+                // Add comma separator
+                out.println("    ldc \",\"");
+                out.println("    invokevirtual java/lang/String concat (Ljava/lang/String;)Ljava/lang/String;");
+            }
+            first = false;
+            
+            // Add field name and '='
+            out.printf("    ldc \"%s=\"%n", fieldName);
+            out.println("    invokevirtual java/lang/String concat (Ljava/lang/String;)Ljava/lang/String;");
+            
+            // Load 'this' and get field value
+            out.println("    aload_0");
+            Type fieldType = fields.get(fieldName);
+            String fieldDescriptor = fieldType.getDescriptor();
+            out.printf("    getfield %s %s %s%n", jvmName, fieldName, fieldDescriptor);
+            
+            // Convert field value to string
+            emitToString(fieldType);
+            
+            // Concatenate
+            out.println("    invokevirtual java/lang/String concat (Ljava/lang/String;)Ljava/lang/String;");
+        }
+        
+        // Add closing ']'
+        out.println("    ldc \"]\"");
+        out.println("    invokevirtual java/lang/String concat (Ljava/lang/String;)Ljava/lang/String;");
+        
+        out.println("    areturn");
+        out.println(".end code");
+        out.println();
+    }
+
+    /**
+     * Generates a user-defined method for a record class.
+     */
+    private void generateRecordMethod(String recordName, String jvmName, 
+                                     Method method, IrFunctionDeclaration methodBody) {
+        // Build method descriptor
+        String paramTypes = method.parameterTypes().stream()
+            .map(Type::getDescriptor)
+            .collect(Collectors.joining(""));
+        String returnType = method.returnType().getDescriptor();
+        
+        out.printf(".method public %s (%s)%s%n", method.name(), paramTypes, returnType);
+        out.println(".code");
+        
+        // Generate method body
+        // Note: 'this' is already local 0, parameters start at local 1
+        generateBlock(methodBody.body());
+        
+        // Add default return if method is void and doesn't have explicit return
+        if (method.returnType() == ReturnType.VOID) {
+            out.println("    return");
+        }
+        
+        out.println(".end code");
+        out.println();
+    }
+
+    /**
+     * Generates static helper methods for converting arrays to strings.
+     */
+    private void generateArrayPrintHelpers() {
+        // arrayToStringInt([I)Ljava/lang/String;
+        generateArrayToStringHelper("Int", "[I", "iaload", "java/lang/Integer", "I");
+        
+        // arrayToStringDouble([D)Ljava/lang/String;
+        generateArrayToStringHelper("Double", "[D", "daload", "java/lang/Double", "D");
+        
+        // arrayToStringBoolean([Z)Ljava/lang/String;
+        generateArrayToStringHelper("Boolean", "[Z", "baload", "java/lang/Boolean", "Z");
+        
+        // arrayToStringString([Ljava/lang/String;)Ljava/lang/String;
+        generateArrayToStringHelper("String", "[Ljava/lang/String;", "aaload", null, null);
+        
+        // arrayToStringObject([Ljava/lang/Object;)Ljava/lang/String;
+        generateArrayToStringHelper("Object", "[Ljava/lang/Object;", "aaload", "java/lang/Object", "Ljava/lang/Object;");
+    }
+
+    /**
+     * Generates a helper method to convert an array to a string.
+     */
+    private void generateArrayToStringHelper(String name, String arrayDesc, String loadOp, 
+                                            String toStringClass, String elementDesc) {
+        out.printf(".method public static arrayToString%s (%s)Ljava/lang/String;%n", name, arrayDesc);
+        out.println(".code");
+        out.println("    ldc \"[\"");
+        out.println("    astore_1"); // Store result string in local 1
+        out.println("    aload_0"); // Load array
+        out.println("    arraylength");
+        out.println("    istore_2"); // Store length in local 2
+        out.println("    iconst_0");
+        out.println("    istore_3"); // Store index in local 3
+        String loopStart = newLabel();
+        String loopEnd = newLabel();
+        out.printf("%s:%n", loopStart);
+        out.println("    iload_3");
+        out.println("    iload_2");
+        out.printf("    if_icmpge %s%n", loopEnd);
+        out.println("    iload_3");
+        out.println("    ifeq skip_comma_" + loopStart);
+        out.println("    aload_1");
+        out.println("    ldc \",\"");
+        out.println("    invokevirtual java/lang/String concat (Ljava/lang/String;)Ljava/lang/String;");
+        out.println("    astore_1");
+        out.println("skip_comma_" + loopStart + ":");
+        out.println("    aload_1");
+        out.println("    aload_0");
+        out.println("    iload_3");
+        out.printf("    %s%n", loadOp);
+        if (toStringClass == null) {
+            // String array - value is already a String, no conversion needed
+            // (but handle null case)
+            String nullLabel = "not_null_" + loopStart;
+            String appendLabel = "append_" + loopStart;
+            out.printf("    ifnonnull %s%n", nullLabel);
+            out.println("    ldc \"null\"");
+            out.printf("    goto %s%n", appendLabel);
+            out.printf("%s:%n", nullLabel);
+            // String is already on stack, use it directly
+            out.printf("%s:%n", appendLabel);
+        } else if ("java/lang/Object".equals(toStringClass)) {
+            // Object array - call toString(), handle null
+            String nullLabel = "not_null_" + loopStart;
+            String appendLabel = "append_" + loopStart;
+            out.printf("    ifnonnull %s%n", nullLabel);
+            out.println("    ldc \"null\"");
+            out.printf("    goto %s%n", appendLabel);
+            out.printf("%s:%n", nullLabel);
+            out.println("    invokevirtual java/lang/Object toString ()Ljava/lang/String;");
+            out.printf("%s:%n", appendLabel);
+        } else {
+            out.printf("    invokestatic %s toString (%s)Ljava/lang/String;%n", toStringClass, elementDesc);
+        }
+        out.println("    invokevirtual java/lang/String concat (Ljava/lang/String;)Ljava/lang/String;");
+        out.println("    astore_1");
+        out.println("    iinc 3 1");
+        out.printf("    goto %s%n", loopStart);
+        out.printf("%s:%n", loopEnd);
+        out.println("    aload_1");
+        out.println("    ldc \"]\"");
+        out.println("    invokevirtual java/lang/String concat (Ljava/lang/String;)Ljava/lang/String;");
+        out.println("    areturn");
+        out.println(".end code");
+        out.println();
     }
 }

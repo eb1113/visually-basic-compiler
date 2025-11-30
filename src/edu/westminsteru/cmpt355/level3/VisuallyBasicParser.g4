@@ -204,13 +204,34 @@ returns [AstExpression n]
 
 newExpr
 returns [AstExpression n]
-    : NEW t=type ARRAY_INDEX_INTO size=expr {
-        // Array construction: OMG int basic 100
-        $n = new AstArrayConstruction($t.n, $size.n);
+    : NEW t=type dims+=dimensionSpec+ {
+        // Array construction: OMG int basic 100 or OMG int basic 10 basic 20
+        // Extract base type and dimensions
+        Type arrayType = $t.n;
+        ScalarType baseType;
+        if (arrayType instanceof ArrayType at) {
+            baseType = at.baseType();
+        } else if (arrayType instanceof ScalarType st) {
+            baseType = st;
+        } else {
+            throw new RuntimeException("Array construction requires scalar or array base type");
+        }
+        java.util.List<AstExpression> dimensionExprs = new java.util.ArrayList<>();
+        for (var dim : $dims) {
+            dimensionExprs.add(dim.n);
+        }
+        $n = new AstArrayConstruction(baseType, dimensionExprs);
     }
     | NEW id=IDENTIFIER LPAREN args=argumentsList RPAREN {
         // Record construction: OMG Point(1.2, 3.4)
         $n = new AstRecordConstruction($id.text, $args.n);
+    }
+    ;
+
+dimensionSpec
+returns [AstExpression n]
+    : ARRAY_INDEX_INTO size=expr {
+        $n = $size.n;
     }
     ;
 
