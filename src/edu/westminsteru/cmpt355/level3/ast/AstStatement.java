@@ -10,5 +10,5 @@ public sealed interface AstStatement extends AstNode
         AstVariableAssignment, AstVariableDeclaration,
         AstFunctionDeclaration, AstFunctionCall, AstReturn,
         AstIf, AstWhile, AstFor, AstPascalFor, AstIncrement,
-        AstRecordDeclaration /* AST statement types go here */
+        AstRecordDeclaration, AstMethodCall /* AST statement types go here */
 { }

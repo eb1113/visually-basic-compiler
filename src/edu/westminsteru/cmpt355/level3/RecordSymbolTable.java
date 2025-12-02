@@ -5,6 +5,7 @@ import edu.westminsteru.cmpt355.level3.lang.ReturnType;
 import edu.westminsteru.cmpt355.level3.lang.Type;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -15,7 +16,7 @@ import java.util.Optional;
  */
 public class RecordSymbolTable {
 
-    private final Map<String, Type> fieldTable = new HashMap<String, Type>();
+    private final Map<String, Type> fieldTable = new LinkedHashMap<String, Type>();
     private final Map<String, Method> methodTable = new HashMap<String, Method>();
 
     /**
@@ -78,9 +79,10 @@ public class RecordSymbolTable {
 
     /**
      * Returns a copy of all fields defined in this record symbol table
+     * Preserves insertion order by returning a LinkedHashMap
      */
     public Map<String, Type> getFields() {
-        return Map.copyOf(fieldTable);
+        return new LinkedHashMap<>(fieldTable);
     }
 
     /**

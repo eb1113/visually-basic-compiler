@@ -16,6 +16,7 @@ public class GlobalSymbolTable implements SymbolTable {
     private final Map<String, GlobalVariable> globalTable = new HashMap<String, GlobalVariable>();
     private final Map<String,Function> functionTable = new HashMap<String, Function>();
     private final Map<String, RecordSymbolTable> recordTable = new HashMap<String, RecordSymbolTable>();
+    private final Map<String, RecordType> recordTypeTable = new HashMap<String, RecordType>();
 
     /**
      * Returns the (global) variable with the given name or an empty Optional if none is defined.
@@ -109,7 +110,23 @@ public class GlobalSymbolTable implements SymbolTable {
             throw new DuplicateDefinitionException("Record " + name + " is already defined in this scope.");
         } else {
             recordTable.put(name, recordSymbolTable);
+            // Create and store  RecordType instance
+            RecordType rt = new RecordType(name, recordSymbolTable.getFields());
+            recordTypeTable.put(name, rt);
             return recordSymbolTable;
+        }
+    }
+
+    /**
+     * Returns the resolved RecordType for the given record name.
+     * @param name the name of the record
+     * @return the defined/resolved RecordType, or empty if the record is not defined
+     */
+    public Optional<RecordType> resolveRecordType(String name) {
+        if (recordTypeTable.containsKey(name)) {
+            return Optional.of(recordTypeTable.get(name));
+        } else {
+            return Optional.empty();
         }
     }
 

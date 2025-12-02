@@ -1,11 +1,11 @@
-/* z_exit.l3: System.exit() method
+** z_exit.l3: System.exit() method
 Note that calling System.exit() immediately exits the JVM - including the
 tester! So for this test, success means that the tester is never able to
 print either success or failure.
 [[BEGIN TEST CASES]]
 Output: <<(nothing should be printed)>>
 [[END TEST CASES]]
-*/
+**
 
-System.exit(0);
-print("If this prints, you did not succeed in hooking System.exit().");
+System XO exit(0);
+spill("If this prints, you did not succeed in hooking System.exit().");

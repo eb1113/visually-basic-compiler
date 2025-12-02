@@ -85,6 +85,7 @@ public class Main {
              PrintWriter codeOut = new PrintWriter(bw)) {
             var codeGenerator = CodeGenerator.builder()
                 .program(ir)
+                .globalTable(analyzer.getGlobalSymbolTable())
                 .sourceFilename(inFile.toString())
                 .outClassName(inFilenameStem)
                 .output(codeOut)

@@ -9,7 +9,7 @@ import java.util.List;
  * @param arguments The arguments to the method.
  */
 public record AstMethodCall(AstExpression record, String methodName, List<AstExpression> arguments)
-        implements AstExpression {
+        implements AstExpression, AstStatement {
     @Override
     public Iterable<? extends AstExpression> children() {
         java.util.List<AstExpression> children = new java.util.ArrayList<>();

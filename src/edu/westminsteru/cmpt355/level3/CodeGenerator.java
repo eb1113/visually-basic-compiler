@@ -194,9 +194,16 @@ public class CodeGenerator {
                 case STRING -> out.println("    invokevirtual java/io/PrintStream println (Ljava/lang/String;)V");
                 default -> throw new IllegalArgumentException("Cannot println type: " + type);
             }
+        } else if (type instanceof ArrayType) {
+            // Array - convert to string first, then print
+            emitToString(type);
+            out.println("    invokevirtual java/io/PrintStream println (Ljava/lang/String;)V");
+        } else if (type instanceof RecordType) {
+            // Record - convert to string first, then print
+            emitToString(type);
+            out.println("    invokevirtual java/io/PrintStream println (Ljava/lang/String;)V");
         } else {
-            // ArrayType or RecordType - use Object println
-            out.println("    invokevirtual java/io/PrintStream println (Ljava/lang/Object;)V");
+            throw new IllegalArgumentException("Cannot println type: " + type);
         }
     }
 
@@ -324,6 +331,26 @@ public class CodeGenerator {
                 generateExpression(exprStmt.expression());
                 emitPop(exprStmt.expression().type());
             }
+            case IrMethodCall methodCall -> {
+                // Handle method calls as statements (e.g., System.exit())
+                // Special case: System.exit()
+                if (methodCall.record() instanceof IrVariable var && 
+                    var.variable() instanceof GlobalVariable gv && 
+                    "System".equals(gv.name()) &&
+                    "exit".equals(methodCall.methodName())) {
+                    // Generate argument expression
+                    for (IrExpression arg : methodCall.args()) {
+                        generateExpression(arg);
+                    }
+                    out.println("    invokestatic java/lang/System exit (I)V");
+                    return;
+                }
+                // For other method calls, generate as expression and pop result
+                generateExpression(methodCall);
+                if (methodCall.returnType() != BuiltInType.VOID) {
+                    emitPop(methodCall.returnType());
+                }
+            }
             default -> throw new IllegalArgumentException("Unknown statement: " + stmt);
         }
     }
@@ -397,7 +424,6 @@ public class CodeGenerator {
 
         // Multiple arguments: concatenate strings
         boolean first = true;
-        out.println("    getstatic java/lang/System out Ljava/io/PrintStream;");
         for (IrExpression arg : print.args()) {
             if (first) {
                 // Start with the first argument
@@ -421,6 +447,11 @@ public class CodeGenerator {
                 out.println("    invokevirtual java/lang/String concat (Ljava/lang/String;)Ljava/lang/String;");
             }
         }
+        // Load PrintStream, swap with string, and call println
+        // Stack after string building: [String]
+        out.println("    getstatic java/lang/System out Ljava/io/PrintStream;");
+        // Stack now: [String, PrintStream]
+        out.println("    swap");  // Swap to get [PrintStream, String]
         out.println("    invokevirtual java/io/PrintStream println (Ljava/lang/String;)V");
     }
 
@@ -469,11 +500,10 @@ public class CodeGenerator {
     }
 
     private void generateAssignment(IrVariableAssignment assign) {
-        // Generate value expression first
-        generateExpression(assign.value());
-        
         // Handle different types of lvalues
         if (assign.lvalue() instanceof IrVariable var) {
+            // For simple variable assignments, generate value first, then store
+            generateExpression(assign.value());
             // Check if it's a local or global variable
             if (var.variable() instanceof LocalVariable local) {
                 // Use local variable store instruction
@@ -486,19 +516,41 @@ public class CodeGenerator {
         } else if (assign.lvalue() instanceof IrArraySubscript arraySubscript) {
             // Array subscript assignment
             // Need: array, index, value on stack for *astore
-            // Strategy: generate array and index first, then value
+            // For input() with side effects, handle prompt separately, then generate in correct order
             
-            // Generate array expression
-            generateExpression(arraySubscript.array());
-            // Stack: [array]
-            
-            // Generate index expression
-            generateExpression(arraySubscript.index());
-            // Stack: [array, index]
-            
-            // Generate value expression
-            generateExpression(assign.value());
-            // Stack: [array, index, value] - correct order for *astore
+            if (assign.value() instanceof IrInput input) {
+                // Special handling for input: generate prompt first, then array/index, then read
+                // This avoids stack manipulation issues
+                
+                // Generate prompt (side effect: prints to console)
+                out.println("    getstatic java/lang/System out Ljava/io/PrintStream;");
+                generateExpression(input.prompt());
+                out.println("    invokevirtual java/io/PrintStream print (Ljava/lang/String;)V");
+                
+                // Now generate array and index in correct order
+                generateExpression(arraySubscript.array());
+                generateExpression(arraySubscript.index());
+                
+                // Finally, read the value (leaves it on stack)
+                Type inputType = input.type();
+                if (inputType instanceof BuiltInType builtIn) {
+                    switch (builtIn) {
+                        case INT -> out.printf("    invokestatic %s readInt ()I\n", outClassName);
+                        case DOUBLE -> out.printf("    invokestatic %s readDouble ()D\n", outClassName);
+                        case STRING -> out.printf("    invokestatic %s readString ()Ljava/lang/String;\n", outClassName);
+                        default -> throw new IllegalArgumentException("Cannot input type: " + inputType);
+                    }
+                } else {
+                    throw new IllegalArgumentException("Cannot input type: " + inputType);
+                }
+                // Stack: [array, index, value] - correct order for *astore
+            } else {
+                // No side effects: generate in correct order directly
+                generateExpression(arraySubscript.array());
+                generateExpression(arraySubscript.index());
+                generateExpression(assign.value());
+                // Stack: [array, index, value] - correct order
+            }
             
             Type elementType = arraySubscript.elementType();
             if (elementType instanceof BuiltInType builtIn) {
@@ -803,17 +855,17 @@ public class CodeGenerator {
                 }
             }
             case IrRecordConstruction recordConstruction -> {
-                // Generate all argument expressions
-                for (IrExpression arg : recordConstruction.args()) {
-                    generateExpression(arg);
-                }
-                
-                // Create new record instance
+                // Create new record instance first
                 String recordName = recordConstruction.name().replace('.', '/');
                 out.printf("    new %s%n", recordName);
                 
                 // Duplicate reference for constructor call
                 out.println("    dup");
+                
+                // Generate all argument expressions (after NEW and DUP)
+                for (IrExpression arg : recordConstruction.args()) {
+                    generateExpression(arg);
+                }
                 
                 // Build constructor descriptor
                 String paramTypes = recordConstruction.args().stream()
@@ -864,6 +916,37 @@ public class CodeGenerator {
                 out.printf("    getfield %s %s %s%n", recordName, fieldName, fieldDescriptor);
             }
             case IrMethodCall methodCall -> {
+                String methodName = methodCall.methodName();
+                
+                // Special case: Math methods (static calls, no receiver needed)
+                if (methodCall.record() instanceof IrVariable var && 
+                    var.variable() instanceof GlobalVariable gv && 
+                    "Math".equals(gv.name())) {
+                    // Generate all argument expressions
+                    for (IrExpression arg : methodCall.args()) {
+                        generateExpression(arg);
+                    }
+                    String paramTypes = methodCall.args().stream()
+                        .map(a -> a.type().getDescriptor())
+                        .collect(Collectors.joining(""));
+                    String returnType = methodCall.returnType().getDescriptor();
+                    out.printf("    invokestatic java/lang/Math %s (%s)%s%n", methodName, paramTypes, returnType);
+                    return;
+                }
+                
+                // Special case: System.exit() (static call, no receiver needed)
+                if (methodCall.record() instanceof IrVariable var && 
+                    var.variable() instanceof GlobalVariable gv && 
+                    "System".equals(gv.name()) &&
+                    "exit".equals(methodName)) {
+                    // Generate argument expression
+                    for (IrExpression arg : methodCall.args()) {
+                        generateExpression(arg);
+                    }
+                    out.println("    invokestatic java/lang/System exit (I)V");
+                    return;
+                }
+                
                 // Generate record expression (receiver)
                 generateExpression(methodCall.record());
                 
@@ -873,19 +956,6 @@ public class CodeGenerator {
                 }
                 
                 Type recordType = methodCall.record().type();
-                String methodName = methodCall.methodName();
-                
-                // Special case: Math methods
-                if (methodCall.record() instanceof IrVariable var && 
-                    var.variable() instanceof GlobalVariable gv && 
-                    "Math".equals(gv.name())) {
-                    String paramTypes = methodCall.args().stream()
-                        .map(a -> a.type().getDescriptor())
-                        .collect(Collectors.joining(""));
-                    String returnType = methodCall.returnType().getDescriptor();
-                    out.printf("    invokestatic java/lang/Math %s (%s)%s%n", methodName, paramTypes, returnType);
-                    return;
-                }
                 
                 // Special case: String methods
                 if (recordType == BuiltInType.STRING) {
@@ -894,15 +964,6 @@ public class CodeGenerator {
                         .collect(Collectors.joining(""));
                     String returnType = methodCall.returnType().getDescriptor();
                     out.printf("    invokevirtual java/lang/String %s (%s)%s%n", methodName, paramTypes, returnType);
-                    return;
-                }
-                
-                // Special case: System.exit()
-                if (methodCall.record() instanceof IrVariable var && 
-                    var.variable() instanceof GlobalVariable gv && 
-                    "System".equals(gv.name()) &&
-                    "exit".equals(methodName)) {
-                    out.println("    invokestatic java/lang/System exit (I)V");
                     return;
                 }
                 
@@ -1033,12 +1094,16 @@ public class CodeGenerator {
                         throw new IllegalArgumentException("Increment only works on int and double array elements");
                     }
                     
-                    // Load array, index, and current value
+                    // Load array and index
                     generateExpression(arraySubscript.array());
                     generateExpression(arraySubscript.index());
                     // Stack: [array, index]
                     
-                    // Load current value
+                    // Duplicate array and index before loading element
+                    out.println("    dup2");
+                    // Stack: [array, index, array, index]
+                    
+                    // Load current value (pops array and index from top, pushes value)
                     if (elementType == BuiltInType.INT) {
                         out.println("    iaload");
                     } else {
@@ -1077,13 +1142,13 @@ public class CodeGenerator {
                         // Stack: [newValue] - prefix returns new value
                     } else {
                         // Postfix: use old value, then increment
-                        // Duplicate old value first
+                        // Duplicate old value first (for return)
                         if (elementType == BuiltInType.INT) {
                             out.println("    dup");
                         } else {
                             out.println("    dup2");
                         }
-                        // Stack: [array, index, value, value]
+                        // Stack: [array, index, value, value] (oldValue duplicated)
                         
                         // Increment
                         if (inc.op() == IncrementOp.INCREMENT) {
@@ -1105,16 +1170,24 @@ public class CodeGenerator {
                         }
                         // Stack: [array, index, oldValue, newValue]
                         
-                        // Store new value: need array, index, newValue
-                        // Swap to get: array, index, newValue, oldValue
+                        // Store new value: need array, index, newValue on top
+                        // Stack after increment: [array, index, oldValue, newValue]
+                        // We need to rearrange to [array, index, newValue] for store, keeping oldValue for return
                         if (elementType == BuiltInType.INT) {
-                            out.println("    dup_x2"); // Duplicate newValue below oldValue
-                            out.println("    pop");    // Remove duplicate
-                            out.println("    iastore");
+                            // Stack: [array, index, oldValue, newValue]
+                            // Swap oldValue and newValue to get newValue in position for store
+                            out.println("    swap");      // Swap: [array, index, newValue, oldValue]
+                            // Now iastore needs [array, index, newValue] on top
+                            // iastore pops 3 values: array, index, newValue
+                            // After iastore, oldValue will remain on stack: [oldValue]
+                            out.println("    iastore");   // Store: pops array, index, newValue, leaves oldValue
                         } else {
-                            out.println("    dup2_x2"); // Duplicate newValue below oldValue
-                            out.println("    pop2");    // Remove duplicate
-                            out.println("    dastore");
+                            // Stack: [array, index, oldValue, newValue]
+                            // Swap oldValue and newValue
+                            out.println("    swap2");     // Swap: [array, index, newValue, oldValue]
+                            // dastore pops 3 2-slot values: array, index, newValue
+                            // After dastore, oldValue will remain on stack: [oldValue]
+                            out.println("    dastore");   // Store: pops array, index, newValue, leaves oldValue
                         }
                         // Stack: [oldValue] - postfix returns old value
                     }
@@ -1238,7 +1311,7 @@ public class CodeGenerator {
         generateExpression(cast.expr());
         
         // Handle conversions
-        if (sourceType == targetType) {
+        if (sourceType.equals(targetType)) {
             // No conversion needed
             return;
         }
@@ -1440,8 +1513,6 @@ public class CodeGenerator {
         
         // Class declaration
         out.printf(".class public %s%n", jvmName);
-        if (sourceFilename != null)
-            out.printf(".source %s%n", sourceFilename);
         out.println(".super java/lang/Object");
         out.println();
         
@@ -1461,7 +1532,7 @@ public class CodeGenerator {
         generateRecordToString(recordName, jvmName, fieldNames, fields);
         
         // Generate user-defined methods
-        // Get method IR bodies from IrProgram (similar to how functions work)
+        // Get method IR bodies from IrProgram
         List<IrFunctionDeclaration> methodBodies = program.recordMethods().getOrDefault(recordName, List.of());
         Map<String, Method> methods = recordTable.getMethods();
         
@@ -1642,36 +1713,54 @@ public class CodeGenerator {
         out.println("    invokevirtual java/lang/String concat (Ljava/lang/String;)Ljava/lang/String;");
         out.println("    astore_1");
         out.println("skip_comma_" + loopStart + ":");
-        out.println("    aload_1");
-        out.println("    aload_0");
-        out.println("    iload_3");
-        out.printf("    %s%n", loadOp);
-        if (toStringClass == null) {
-            // String array - value is already a String, no conversion needed
-            // (but handle null case)
+        if ("java/lang/Object".equals(toStringClass)) {
+            // Object array - first compute element string, then concat with base
+            // Load element and compute its string representation
+            out.println("    aload_0");
+            out.println("    iload_3");
+            out.printf("    %s%n", loadOp);
             String nullLabel = "not_null_" + loopStart;
-            String appendLabel = "append_" + loopStart;
+            String joinLabel = "join_" + loopStart;
+            out.println("    dup");
             out.printf("    ifnonnull %s%n", nullLabel);
+            out.println("    pop");
             out.println("    ldc \"null\"");
-            out.printf("    goto %s%n", appendLabel);
-            out.printf("%s:%n", nullLabel);
-            // String is already on stack, use it directly
-            out.printf("%s:%n", appendLabel);
-        } else if ("java/lang/Object".equals(toStringClass)) {
-            // Object array - call toString(), handle null
-            String nullLabel = "not_null_" + loopStart;
-            String appendLabel = "append_" + loopStart;
-            out.printf("    ifnonnull %s%n", nullLabel);
-            out.println("    ldc \"null\"");
-            out.printf("    goto %s%n", appendLabel);
+            out.printf("    goto %s%n", joinLabel);
             out.printf("%s:%n", nullLabel);
             out.println("    invokevirtual java/lang/Object toString ()Ljava/lang/String;");
-            out.printf("%s:%n", appendLabel);
+            out.printf("%s:%n", joinLabel);
+            // Stack: [String elemStr]
+            // Now load base and concat
+            out.println("    aload_1");
+            out.println("    swap");
+            out.println("    invokevirtual java/lang/String concat (Ljava/lang/String;)Ljava/lang/String;");
+            out.println("    astore_1");
         } else {
-            out.printf("    invokestatic %s toString (%s)Ljava/lang/String;%n", toStringClass, elementDesc);
+            // For String and primitive arrays, load base first
+            out.println("    aload_1");
+            out.println("    aload_0");
+            out.println("    iload_3");
+            out.printf("    %s%n", loadOp);
+            if (toStringClass == null) {
+                // String array - value is already a String, no conversion needed
+                // (but handle null case)
+                // Use dup/pop pattern to ensure both branches have same stack state at join
+                String nullLabel = "not_null_" + loopStart;
+                String joinLabel = "append_" + loopStart;
+                out.println("    dup");
+                out.printf("    ifnonnull %s%n", nullLabel);
+                out.println("    pop");
+                out.println("    ldc \"null\"");
+                out.printf("    goto %s%n", joinLabel);
+                out.printf("%s:%n", nullLabel);
+                // String is already on stack, use it directly
+                out.printf("%s:%n", joinLabel);
+            } else {
+                out.printf("    invokestatic %s toString (%s)Ljava/lang/String;%n", toStringClass, elementDesc);
+            }
+            out.println("    invokevirtual java/lang/String concat (Ljava/lang/String;)Ljava/lang/String;");
+            out.println("    astore_1");
         }
-        out.println("    invokevirtual java/lang/String concat (Ljava/lang/String;)Ljava/lang/String;");
-        out.println("    astore_1");
         out.println("    iinc 3 1");
         out.printf("    goto %s%n", loopStart);
         out.printf("%s:%n", loopEnd);

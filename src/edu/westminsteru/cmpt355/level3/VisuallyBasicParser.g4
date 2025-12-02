@@ -77,9 +77,6 @@ returns [AstStatement n]
     | returnStatement {
         $n = $returnStatement.n;
     }
-    | functionCallStatement {
-        $n = $functionCallStatement.n;
-    }
     | ifChain {
         $n = $ifChain.n;
     }
@@ -88,6 +85,12 @@ returns [AstStatement n]
     }
     | whileLoopStatement {
         $n = $whileLoopStatement.n;
+    }
+    | functionCallStatement {
+        $n = $functionCallStatement.n;
+    }
+    | expressionStatement {
+        $n = $expressionStatement.n;
     }
     | incrementStatement SEMI {
         $n = $incrementStatement.n;
@@ -113,7 +116,7 @@ returns [AstExpression n]
 // Type parsing rule
 type
 returns [Type n]
-    : arrayDecls+=arrayDeclToken* base=baseType {
+    : base=baseType arrayDecls+=arrayDeclToken* {
         int dimensions = 0;
         // Count dimensions from array declaration tokens
         for (var decl : $arrayDecls) {
@@ -176,6 +179,14 @@ returns [AstVariableDeclaration n]
     }
     ;
 
+// Allow simple indicies (arr[5]), arithmetic indicies (arr[1*2]) or unary (arr[++i])
+// Doesn't allow logical operators (||, &&) or assignments
+indexExpr
+returns [AstExpression n]
+    : e=mulExpr { $n = $e.n; }
+    ;
+
+
 // Lvalue system - things that can appear on left side of assignment
 // Structure: lvalue : ID | subscript | fieldAccess
 // Uses iterative suffix approach to avoid left recursion
@@ -183,7 +194,7 @@ lvalue
 returns [AstExpression n]
     : base=lvalueBase {
         $n = $base.n;
-    } (ARRAY_INDEX_INTO idx=expr {
+    } (ARRAY_INDEX_INTO idx=indexExpr {
         $n = new AstArraySubscript($n, $idx.n);
     } | FIELD_OR_METHOD_ACCESS field=IDENTIFIER {
         $n = new AstFieldAccess($n, $field.text);
@@ -195,6 +206,13 @@ lvalueBase
 returns [AstExpression n]
     : IDENTIFIER {
         $n = new AstVariable($IDENTIFIER.text);
+    }
+    | THIS {
+        $n = new AstVariable("this");
+    }
+    | functionCallExpr {
+        // Allow function calls as base for lvalues (e.g., getArray()[0])
+        $n = $functionCallExpr.n;
     }
     | '(' e=expr ')' {
         // Parenthesized expression can be an lvalue
@@ -400,11 +418,11 @@ returns [Optional<AstStatement> n]
 // for ( TYPE var = start to end by step ) block  (Pascal-style)
 forLoopStatement
 returns [AstStatement n]
-    : FOR LPAREN init=forInit SEMI cond=forCondition SEMI upd=forUpdate RPAREN body=block {
+    : FOR LPAREN init=forInit SEMI cond=forCondition SEMI upd=forUpdate RPAREN body=embeddedStatement {
         // Java-style: for ( init ; cond ; update )
         $n = new AstFor($init.n, $cond.n, $upd.n, $body.n);
     }
-    | FOR LPAREN t=type id=IDENTIFIER EQUALS startVal=expr TO endVal=expr BY stepVal=expr RPAREN body=block {
+    | FOR LPAREN t=type id=IDENTIFIER EQUALS startVal=expr TO endVal=expr BY stepVal=expr RPAREN body=embeddedStatement {
         // Pascal-style: for ( TYPE var = startVal to endVal by stepVal )
         // Build AstPascalFor directly - desugaring happens in semantic analysis
         $n = new AstPascalFor(
@@ -490,7 +508,7 @@ recordDeclaration
 returns [AstRecordDeclaration n]
     // phat Point(double x, double y) { methods }
     : RECORD_DECL id=IDENTIFIER LPAREN fields=recordFieldList RPAREN LBRACE methods=recordBody RBRACE {
-        java.util.Map<String, Type> fieldMap = new java.util.HashMap<>();
+        java.util.Map<String, Type> fieldMap = new java.util.LinkedHashMap<>();
         for (var field : $fields.n) {
             fieldMap.put(field.name(), field.type());
         }
@@ -565,6 +583,15 @@ functionCallStatement
 returns [AstStatement n]
     : IDENTIFIER LPAREN args=argumentsList RPAREN SEMI {
         $n = new AstFunctionCall($IDENTIFIER.text, $args.n);
+    }
+    ;
+
+expressionStatement
+returns [AstStatement n]
+    // Match method calls as statements: expr XO methodName(args);
+    // Come after variableAssignmentStatement to avoid conflicts
+    : base=primaryBase FIELD_OR_METHOD_ACCESS field=IDENTIFIER LPAREN args=argumentsList RPAREN SEMI {
+        $n = new AstMethodCall($base.n, $field.text, $args.n);
     }
     ;
 
@@ -662,6 +689,7 @@ returns [AstExpression n]
 unaryExpr
 returns [AstExpression n]
     : prefixInc { $n = $prefixInc.n; }
+    | postfixInc { $n = $postfixInc.n; }
     | '-' x=unaryExpr {
         $n = new AstUnary(UnaryOp.NEGATE, $x.n);
     }
@@ -677,7 +705,7 @@ primary
 returns [AstExpression n]
     : base=primaryBase {
         $n = $base.n;
-    } (ARRAY_INDEX_INTO idx=expr {
+    } (ARRAY_INDEX_INTO idx=indexExpr {
         $n = new AstArraySubscript($n, $idx.n);
     } | FIELD_OR_METHOD_ACCESS field=IDENTIFIER LPAREN args=argumentsList RPAREN {
         // Method call: expr.field(args)

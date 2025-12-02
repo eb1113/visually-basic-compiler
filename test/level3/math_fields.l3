@@ -1,11 +1,11 @@
-/* math_fields.l3: test builtin Math._ fields
+** math_fields.l3: test builtin Math._ fields
 [[BEGIN TEST CASES]]
 Output: <<3.141592653589793
 2.718281828459045
 8.539734222673566>>
 [[END TEST CASES]]
-*/
+**
 
-print(Math.PI);
-print(Math.E);
-print(Math.PI * Math.E);
+spill(Math XO PI);
+spill(Math XO E);
+spill(Math XO PI * Math XO E);

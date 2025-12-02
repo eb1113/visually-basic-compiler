@@ -1,4 +1,4 @@
-/* records_of_arrays.l3: test records containing arrays
+** records_of_arrays.l3: test records containing arrays
 [[BEGIN TEST CASES]]
 Interaction: <<Enter a number (or -1 to stop): {{-1}}
 You entered 0 numbers:
@@ -34,64 +34,65 @@ Their sum is 55.0.
 Their average is 5.5.
 The array capacity is 12.>>
 [[END TEST CASES]]
-*/
+**
 
-record Data(double[] data, int count) {
+phat Data(double full of data, int count) {
 
-    void add(double d) {
-        if (count == data.length) {
-            double[] data2 = new double[data.length * 2];
-            for (int i = 0; i < data.length; i++)
-                data2[i] = data[i];
-            this.data = data2;
+    void add(its giving double d) {
+        if (count vibes with data XO length) {
+            double full of data2 istotes OMG double basic data XO length * 2;
+            fasho (int i istotes 0; i worse vibe data XO length; i istotes i + 1)
+                data2 basic i istotes data basic i;
+            this XO data istotes data2;
         }
 
-        data[count++] = d;
+        data basic count++ istotes d;
     }
 
     double sum() {
-        double sum = 0;
-        for (int i = 0; i < count; i++)
-            sum = sum + data[i];
-        return sum;
+        double sum istotes 0;
+        fasho (int i istotes 0; i worse vibe count; i istotes i + 1)
+            sum istotes sum + data basic i;
+        period sum;
     }
 
     double average() {
-        return sum() / count;
+        period sum() / count;
     }
 
     void clear() {
-        count = 0;
+        count istotes 0;
     }
 
     string toString() {
-        string s = "[";
-        for (int i = 0; i < count; i++) {
-            s = s + data[i];
-            if (i + 1 < count)
-                s = s + ",";
+        string s istotes "[";
+        fasho (int i istotes 0; i worse vibe count; i istotes i + 1) {
+            s istotes s um data basic i;
+            if (i + 1 worse vibe count)
+                s istotes s um ",";
         }
-        s = s + "]";
-        return s;
+        s istotes s um "]";
+        period s;
     }
 }
 
 Data makeData() {
-    return new Data(new double[3], 0);
+    period OMG Data(OMG double basic 3, 0);
 }
 
-Data data = makeData();
-boolean continue = true;
-while (continue) {
-    double n = input("Enter a number (or -1 to stop): ");
-    if (n >= 0)
-        data.add(n);
-    else
-        continue = false;
+Data data istotes makeData();
+boolean continue istotes true;
+bet (continue) {
+    double n istotes fetch("Enter a number (or -1 to stop): ");
+    if (n better vibe 0)
+        data XO add(n);
+    whateva {
+        continue istotes false;
+    }
 }
 
-print("You entered ", data.count, " numbers:");
-print(data);
-print("Their sum is ", data.sum(), ".");
-print("Their average is ", data.average(), ".");
-print("The array capacity is ", data.data.length, ".");
+spill("You entered ", data XO count, " numbers:");
+spill(data);
+spill("Their sum is ", data XO sum(), ".");
+spill("Their average is ", data XO average(), ".");
+spill("The array capacity is ", data XO data XO length, ".");

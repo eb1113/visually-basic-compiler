@@ -1,14 +1,14 @@
-/* string_methods.l3: test builtin string methods
+** string_methods.l3: test builtin string methods
 [[BEGIN TEST CASES]]
 Output: <<26
 4
 -1
 IJKLM>>
 [[END TEST CASES]]
-*/
+**
 
-string alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-print(alphabet.length());           // 26
-print(alphabet.indexOf("E"));       // 4
-print(alphabet.indexOf("!"));       // -1
-print(alphabet.substring(8, 13));   // IJKLM
+string alphabet istotes "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+spill(alphabet XO length());           :) 26
+spill(alphabet XO indexOf("E"));       :) 4
+spill(alphabet XO indexOf("!"));       :) -1
+spill(alphabet XO substring(8, 13));   :) IJKLM

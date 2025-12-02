@@ -136,9 +136,10 @@ public class SemanticAnalyzer {
             // Create a new record symbol table for the record declaration
             RecordSymbolTable recordTable = new RecordSymbolTable();
             
-            // Define all fields
+            // Define all fields (types can be used as-is since RecordType equality is name-based)
             for (Map.Entry<String, Type> field : astRecord.fields().entrySet()) {
-                recordTable.defineField(field.getValue(), field.getKey());
+                Type fieldType = field.getValue();
+                recordTable.defineField(fieldType, field.getKey());
             }
             
             // Define all methods (signatures only, bodies analyzed later)
@@ -146,10 +147,11 @@ public class SemanticAnalyzer {
                 List<Type> paramTypes = methodDecl.parameters().stream()
                     .map(p -> p.type())
                     .toList();
-                recordTable.defineMethod(methodDecl.type(), methodDecl.name(), paramTypes);
+                ReturnType returnType = methodDecl.type();
+                recordTable.defineMethod(returnType, methodDecl.name(), paramTypes);
             }
             
-            // Register record in global symbol table with updated RecordType containing actual fields
+            // Register record in global symbol table
             table.defineRecord(astRecord.name(), recordTable);
         } catch (DuplicateDefinitionException e) {
             throw new SemanticAnalysisException("Record " + astRecord.name() + " is already defined: " + e.getMessage());
@@ -169,8 +171,9 @@ public class SemanticAnalyzer {
         RecordSymbolTable recordTable = table.resolveRecord(astRecord.name())
             .orElseThrow(() -> new SemanticAnalysisException("Record " + astRecord.name() + " not found in symbol table."));
         
-        // Create RecordType for this record
-        RecordType recordType = new RecordType(astRecord.name(), recordTable.getFields());
+        // Get RecordType for this record
+        RecordType recordType = table.resolveRecordType(astRecord.name())
+            .orElseThrow(() -> new SemanticAnalysisException("Record type " + astRecord.name() + " not found in symbol table."));
         
         List<IrFunctionDeclaration> methodBodies = new ArrayList<>();
         
@@ -192,7 +195,8 @@ public class SemanticAnalyzer {
             // Build IR parameters by defining with local variables (starting at index 1)
             List<IrParameter> irParameters = new ArrayList<>();
             for (AstParameter param : methodDecl.parameters()) {
-                LocalVariable localVar = localTable.defineVariable(param.type(), param.name());
+                Type paramType = param.type();
+                LocalVariable localVar = localTable.defineVariable(paramType, param.name());
                 IrParameter irParam = new IrParameter(localVar);
                 irParameters.add(irParam);
             }
@@ -228,7 +232,8 @@ public class SemanticAnalyzer {
         // Build IR parameters by defining with local variables
         List<IrParameter> irParameters = new ArrayList<>();
         for (AstParameter param : astFunction.parameters()) {
-            LocalVariable localVar = localTable.defineVariable(param.type(), param.name());
+            Type paramType = param.type();
+            LocalVariable localVar = localTable.defineVariable(paramType, param.name());
             IrParameter irParam = new IrParameter(localVar);
             irParameters.add(irParam);
         }
@@ -279,18 +284,24 @@ public class SemanticAnalyzer {
                 return List.of(irAssembly);
             }
             case AstFunctionCall call -> {
-                // Check return oldType of function call - if void then return IrStatement
+                // In statement context, void functions are allowed
                 Function func = table.resolveFunction(call.name()).orElseThrow(() -> new SemanticAnalysisException("Function not defined: " + call.name()));
                 List<IrExpression> irArgs = analyzeArguments(call.args(), func.parameterTypes(), table, currentCallable, 
                     "Function " + func.name());
                 
                 Type irType = switch (func.returnType()) {
                     case Type t -> t;
-                    case ReturnType.Void _ -> throw new SemanticAnalysisException("Cannot use void function as expression");
+                    case ReturnType.Void _ -> BuiltInType.VOID;  // Allow void functions as statements
                 };
                 IrFunctionCall irCall = new IrFunctionCall(irType, func.name(), irArgs);
                 // Always return as statement; CodeGenerator will pop non-void results
                 return List.of(irCall);
+            }
+            case AstMethodCall methodCall -> {
+                // Method calls can be used as statements
+                IrExpression irMethodCall = analyzeExpression(methodCall, table, currentCallable);
+                // IrMethodCall implements both IrStatement and IrExpression
+                return List.of((IrStatement) irMethodCall);
             }
             case AstFunctionDeclaration funcDecl -> {
                 IrFunctionDeclaration irFuncDecl = analyzeFunction(funcDecl, (GlobalSymbolTable) table);
@@ -338,12 +349,29 @@ public class SemanticAnalyzer {
                 
                 Type targetType = ((Type) retType);
                 
+                // Addressing targetType: if it's an ArrayType with RecordType base, use RecordType
+                if (targetType instanceof ArrayType at && at.baseType() instanceof RecordType rt) {
+                    GlobalSymbolTable globalTable = extractGlobalSymbolTable(table);
+                    RecordType resolvedRt = globalTable.resolveRecordType(rt.name())
+                        .orElse(rt); // Fallback to original if not found
+                    if (resolvedRt != rt) {
+                        targetType = new ArrayType(resolvedRt, at.dimensions());
+                    }
+                } else if (targetType instanceof RecordType rt) {
+                    GlobalSymbolTable globalTable = extractGlobalSymbolTable(table);
+                    RecordType resolvedRt = globalTable.resolveRecordType(rt.name())
+                        .orElse(rt); // Fallback to original if not found
+                    if (resolvedRt != rt) {
+                        targetType = resolvedRt;
+                    }
+                }
+                
                 // Apply same widening/toString rules as assignment
                 if (valueType == BuiltInType.INT && targetType == BuiltInType.DOUBLE) {
                     value = new IrWiden(value);
                 } else if (targetType == BuiltInType.STRING && valueType != BuiltInType.STRING) {
                     value = new IrToString(value);
-                } else if (valueType != targetType) {
+                } else if (!valueType.equals(targetType)) {
                     throw new SemanticAnalysisException("Type mismatch in return: cannot return " + valueType + " from " + currentCallable.name() + " expecting " + targetType);
                 }
                 
@@ -384,7 +412,7 @@ public class SemanticAnalyzer {
                     valueExpr = new IrToString(valueExpr);
                 }
                 // Error if types don't match and can't be widened/converted
-                else if (valueType != targetType) {
+                else if (!valueType.equals(targetType)) {
                     throw new SemanticAnalysisException("Type mismatch: cannot assign " + valueType + " to " + targetType);
                 }
 
@@ -392,12 +420,15 @@ public class SemanticAnalyzer {
                 return List.of(varAssign);
             }
             case AstVariableDeclaration decl -> {
+                // Types can be used as-is since RecordType equality is name-based
+                Type declType = decl.type();
+                
                 // Check if we're in a local scope (function) or global scope
                 Variable var;
                 if (table instanceof LocalSymbolTable) {
                     // Inside a function or block scope, define a new local variable
                     try {
-                        var = table.defineVariable(decl.type(), decl.name());
+                        var = table.defineVariable(declType, decl.name());
                     } catch (DuplicateDefinitionException e) {
                         throw new SemanticAnalysisException("Variable " + decl.name() + " is already defined in this scope.");
                     }
@@ -412,7 +443,7 @@ public class SemanticAnalyzer {
                         // Variable declaration at global scope - define it in global scope
                         // This allows shadowing of variables from nested scopes (like functions)
                         try {
-                            var = table.defineVariable(decl.type(), decl.name());
+                            var = table.defineVariable(declType, decl.name());
                         } catch (DuplicateDefinitionException e) {
                             throw new SemanticAnalysisException("Variable " + decl.name() + " is already defined in this scope.");
                         }
@@ -440,11 +471,11 @@ public class SemanticAnalyzer {
                         valueExpr = new IrWiden(valueExpr);
                     }
                     // Convert to string if needed
-                    else if (targetType == BuiltInType.STRING && valueType != BuiltInType.STRING) {
+                    else if (targetType == BuiltInType.STRING && !valueType.equals(BuiltInType.STRING)) {
                         valueExpr = new IrToString(valueExpr);
                     }
                     // Error if types don't match and can't be widened/converted
-                    else if (valueType != targetType) {
+                    else if (!valueType.equals(targetType)) {
                         throw new SemanticAnalysisException("Type mismatch: cannot assign " + valueType + " to " + targetType);
                     }
                     
@@ -583,9 +614,8 @@ public class SemanticAnalyzer {
                 return result;
             }
             case AstIncrement increment -> {
-                // Analyze increment as an expression, then wrap it as a statement
-                IrExpression irExpr = analyzeExpression(increment, table, currentCallable);
-                return List.of(new IrExpressionStatement(irExpr));
+                IrIncrement irInc = analyzeIncrement(increment, table, currentCallable);
+                return List.of(new IrExpressionStatement(irInc));
             }
             default -> throw new SemanticAnalysisException("Unknown statement oldType: " + astStatement.getClass().getSimpleName());
         }
@@ -626,7 +656,7 @@ public class SemanticAnalyzer {
                             left = new IrWiden(left);
                         } else if (left.type() == BuiltInType.DOUBLE && right.type() == BuiltInType.INT) {
                             right = new IrWiden(right);
-                        } else if (left.type() != right.type()) {
+                        } else if (!left.type().equals(right.type())) {
                             throw new SemanticAnalysisException("Type mismatch in " + binary.op() + ": " + left.type() + " and " + right.type());
                         }
                         yield new IrBinary(binary.op(), left, right);
@@ -637,7 +667,7 @@ public class SemanticAnalyzer {
                             left = new IrWiden(left);
                         } else if (left.type() == BuiltInType.DOUBLE && right.type() == BuiltInType.INT) {
                             right = new IrWiden(right);
-                        } else if (left.type() != right.type()) {
+                        } else if (!left.type().equals(right.type())) {
                             throw new SemanticAnalysisException("Type mismatch in " + binary.op() + ": " + left.type() + " and " + right.type());
                         }
                         yield new IrBinary(binary.op(), left, right);
@@ -659,7 +689,7 @@ public class SemanticAnalyzer {
                             left = new IrWiden(left);
                         } else if (left.type() == BuiltInType.DOUBLE && right.type() == BuiltInType.INT) {
                             right = new IrWiden(right);
-                        } else if (left.type() != right.type()) {
+                        } else if (!left.type().equals(right.type())) {
                             throw new SemanticAnalysisException("Type mismatch in " + binary.op() + ": " + left.type() + " and " + right.type());
                         }
                         // Verify oldType is comparable (INT, DOUBLE, or STRING)
@@ -709,6 +739,30 @@ public class SemanticAnalyzer {
                 return new IrBoolean(booleanLiteral.value());
             }
             case AstFunctionCall call -> {
+                // Check if we're in a record method context and this might be a method call
+                if (currentCallable instanceof Method) {
+                    // Try to resolve as a method first
+                    Optional<? extends Variable> thisVar = table.resolveVariable("this");
+                    if (thisVar.isPresent() && thisVar.get().type() instanceof RecordType recordType) {
+                        GlobalSymbolTable globalTable = extractGlobalSymbolTable(table);
+                        RecordSymbolTable recordTable = globalTable.resolveRecord(recordType.name())
+                            .orElse(null);
+                        if (recordTable != null && recordTable.resolveMethod(call.name()).isPresent()) {
+                            // This is a method call, not a function call
+                            Method method = recordTable.resolveMethod(call.name()).get();
+                            IrVariable thisIrVar = new IrVariable(thisVar.get());
+                            List<IrExpression> irArgs = analyzeArguments(call.args(), method.parameterTypes(), table, currentCallable,
+                                "Method " + call.name() + " in record " + recordType.name());
+                            Type returnType = switch (method.returnType()) {
+                                case Type t -> t;
+                                case ReturnType.Void _ -> BuiltInType.VOID;
+                            };
+                            return new IrMethodCall(thisIrVar, call.name(), irArgs, returnType);
+                        }
+                    }
+                }
+                
+                // Not a method call, try as function
                 Function func = table.resolveFunction(call.name())
                         .orElseThrow(() -> new SemanticAnalysisException("Function not defined: " + call.name()));
                 // Check if function returns a non-void oldType
@@ -728,7 +782,7 @@ public class SemanticAnalyzer {
                 Type targetType = cast.targetType();
                 
                 // If types already match, no conversion needed
-                if (sourceType == targetType) {
+                if (sourceType.equals(targetType)) {
                     return inner;
                 }
                 
@@ -827,27 +881,29 @@ public class SemanticAnalyzer {
                 // Normal variable resolution
                 Optional<? extends Variable> resolved = table.resolveVariable(varName);
                 if (resolved.isEmpty()) {
+                    // If we're in a record method, check if this is a field name
+                    if (currentCallable instanceof Method) {
+                        // Check if "this" is defined (should be in record methods)
+                        Optional<? extends Variable> thisVar = table.resolveVariable("this");
+                        if (thisVar.isPresent() && thisVar.get().type() instanceof RecordType recordType) {
+                            // Check if the variable name is a field of this record
+                            GlobalSymbolTable globalTable = extractGlobalSymbolTable(table);
+                            RecordSymbolTable recordTable = globalTable.resolveRecord(recordType.name())
+                                .orElse(null);
+                            if (recordTable != null && recordTable.resolveField(varName).isPresent()) {
+                                // Convert to field access: this.fieldName
+                                IrVariable thisIrVar = new IrVariable(thisVar.get());
+                                return new IrFieldAccess(thisIrVar, varName, recordTable.resolveField(varName).get());
+                            }
+                        }
+                    }
                     throw new SemanticAnalysisException("Variable not defined: " + varName);
                 }
                 Variable var = resolved.get();
                 return new IrVariable(var);
             }
             case AstIncrement increment -> {
-                // Analyze the lvalue (can be variable, array subscript, or field access)
-                IrExpression lvalue = analyzeExpression(increment.lvalue(), table, currentCallable);
-                
-                // Verify it's an lvalue
-                if (!(lvalue instanceof IrLvalue)) {
-                    throw new SemanticAnalysisException("Increment/decrement requires an lvalue, found: " + lvalue.getClass().getSimpleName());
-                }
-                
-                // Lvalue type must be INT or DOUBLE
-                Type lvalueType = lvalue.type();
-                if (lvalueType != BuiltInType.INT && lvalueType != BuiltInType.DOUBLE) {
-                    throw new SemanticAnalysisException("Increment/decrement only works on int and double lvalues, got: " + lvalueType);
-                }
-                
-                return new IrIncrement(increment.op(), lvalue, increment.isPrefix());
+                return analyzeIncrement(increment, table, currentCallable);
             }
             case AstInput input -> {
                 // Analyze prompt and coerce to string if needed
@@ -872,17 +928,8 @@ public class SemanticAnalyzer {
                     // If Math is a variable, fall through to normal handling
                 }
                 
-                // Analyze the record expression
-                IrExpression recordExpr = analyzeExpression(methodCall.record(), table, currentCallable);
-                Type recordType = recordExpr.type();
-                
-                // Special case: String methods
-                if (recordType == BuiltInType.STRING) {
-                    return handleBuiltInStringMethod(methodName, args, recordExpr, table, currentCallable);
-                }
-                
-                // Special case: System.exit()
-                if (recordExpr instanceof IrVariable var && "System".equals(var.variable().name())) {
+                // Special case: System.exit() (check before analyzing record expression)
+                if (methodCall.record() instanceof AstVariable var && "System".equals(var.variable())) {
                     Optional<? extends Variable> systemVar = table.resolveVariable("System");
                     if (systemVar.isEmpty() && "exit".equals(methodName)) {
                         // Built-in System.exit()
@@ -893,9 +940,20 @@ public class SemanticAnalyzer {
                         if (exitCode.type() != BuiltInType.INT) {
                             throw new SemanticAnalysisException("System.exit() expects int argument, got " + exitCode.type());
                         }
+                        // Create a placeholder IrVariable for System (not resolved from symbol table)
+                        IrVariable systemPlaceholder = new IrVariable(new GlobalVariable(BuiltInType.VOID, "System"));
                         // System.exit() is void - handle as statement, but also as expression
-                        return new IrMethodCall(recordExpr, methodName, List.of(exitCode), BuiltInType.VOID);
+                        return new IrMethodCall(systemPlaceholder, methodName, List.of(exitCode), BuiltInType.VOID);
                     }
+                }
+                
+                // Analyze the record expression
+                IrExpression recordExpr = analyzeExpression(methodCall.record(), table, currentCallable);
+                Type recordType = recordExpr.type();
+                
+                // Special case: String methods
+                if (recordType == BuiltInType.STRING) {
+                    return handleBuiltInStringMethod(methodName, args, recordExpr, table, currentCallable);
                 }
                 
                 // Normal case: Record method call
@@ -905,8 +963,10 @@ public class SemanticAnalyzer {
                 
                 RecordType rt = (RecordType) recordType;
                 GlobalSymbolTable globalTable = extractGlobalSymbolTable(table);
+                
+                // Look up record symbol table directly by name
                 RecordSymbolTable recordTable = globalTable.resolveRecord(rt.name())
-                    .orElseThrow(() -> new SemanticAnalysisException("Record type not found: " + rt.name()));
+                    .orElseThrow(() -> new SemanticAnalysisException("Record symbol table not found: " + rt.name()));
                 
                 // Resolve method from record symbol table
                 Method method = recordTable.resolveMethod(methodName)
@@ -948,23 +1008,38 @@ public class SemanticAnalyzer {
                 // Analyze the array expression
                 IrExpression arrayExpr = analyzeExpression(arraySubscript.array(), table, currentCallable);
                 Type arrayType = arrayExpr.type();
-                
+
                 // Verify it's an ArrayType
                 if (!(arrayType instanceof ArrayType)) {
                     throw new SemanticAnalysisException("Array subscript requires array type, found: " + arrayType);
                 }
-                
-                // Analyze the index expression (must be int)
+
+                // Analyze the index expression
                 IrExpression indexExpr = analyzeExpression(arraySubscript.index(), table, currentCallable);
-                if (indexExpr.type() != BuiltInType.INT) {
-                    throw new SemanticAnalysisException("Array index must be int, found: " + indexExpr.type());
+                Type indexType = indexExpr.type();
+
+                // Coerce index to INT where makes sense
+                if (indexType != BuiltInType.INT) {
+                    System.err.println("DEBUG: arrayExpr class = " + arraySubscript.array().getClass().getSimpleName());
+                    if (arrayExpr instanceof IrVariable v && v.variable() instanceof GlobalVariable gv) {
+                        System.err.println("DEBUG: array global name = " + gv.name());
+                    }
+                    System.err.println("DEBUG: array index AST = " + arraySubscript.index().getClass().getSimpleName());
+                    if (arraySubscript.index() instanceof AstBinary b) {
+                        System.err.println("DEBUG: index binary op = " + b.op());
+                        System.err.println("DEBUG: left AST  = " + b.left().getClass().getSimpleName());
+                        System.err.println("DEBUG: right AST = " + b.right().getClass().getSimpleName());
+                    }
+                    System.err.println("DEBUG: index IR type = " + indexType);
+                    throw new SemanticAnalysisException("Array index must be int, found: " + indexType);
                 }
                 
-                // Extract the element type from ArrayType.componentType()
+
+                // Extract element type from ArrayType
                 ArrayType at = (ArrayType) arrayType;
                 Type elementType = at.componentType();
-                
-                // Return IrArraySubscript with element type (implements IrLvalue for assignments)
+
+                // Return IrArraySubscript with element type (implements IrLvalue)
                 return new IrArraySubscript(arrayExpr, indexExpr, elementType);
             }
             case AstFieldAccess fieldAccess -> {
@@ -1009,8 +1084,9 @@ public class SemanticAnalyzer {
                 // Get the global symbol table to resolve records
                 GlobalSymbolTable globalTable = extractGlobalSymbolTable(table);
                 
+                // Look up record symbol table directly by name
                 RecordSymbolTable recordTable = globalTable.resolveRecord(rt.name())
-                    .orElseThrow(() -> new SemanticAnalysisException("Record type not found: " + rt.name()));
+                    .orElseThrow(() -> new SemanticAnalysisException("Record symbol table not found: " + rt.name()));
                 
                 // Look up field in record symbol table
                 Type fieldType = recordTable.resolveField(fieldName)
@@ -1047,8 +1123,9 @@ public class SemanticAnalyzer {
                 List<IrExpression> irArgs = analyzeArguments(args, fieldTypes, table, currentCallable,
                     "Record " + recordName + " construction");
                 
-                // Create RecordType with the actual field map
-                RecordType recordType = new RecordType(recordName, fields);
+                // Use RecordType from GlobalSymbolTable
+                RecordType recordType = globalTable.resolveRecordType(recordName)
+                    .orElseThrow(() -> new SemanticAnalysisException("Record type " + recordName + " not found in symbol table."));
                 
                 return new IrRecordConstruction(recordName, irArgs, recordType);
             }
@@ -1095,7 +1172,7 @@ public class SemanticAnalyzer {
                 arg = new IrToString(arg);
             }
             // Error if types don't match and can't be widened/converted
-            else if (argType != paramType) {
+            else if (!argType.equals(paramType)) {
                 throw new SemanticAnalysisException("Type mismatch in " + contextName + ": argument " + (i+1) + 
                     " has type " + argType + " but expects " + paramType);
             }
@@ -1103,6 +1180,42 @@ public class SemanticAnalyzer {
             irArgs.add(arg);
         }
         return irArgs;
+    }
+
+    /**
+     * Analyzes an increment/decrement expression.
+     * @param increment The increment AST node.
+     * @param table The symbol table.
+     * @param currentCallable The current function or method.
+     * @return The generated IR increment expression.
+     * @throws SemanticAnalysisException If there is a semantic analysis error.
+     */
+    private IrIncrement analyzeIncrement(AstIncrement increment,
+                                         SymbolTable table,
+                                         Callable currentCallable) throws SemanticAnalysisException {
+        // Analyze the lvalue (can be variable, array subscript, or field access)
+        IrExpression lvalue = analyzeExpression(increment.lvalue(), table, currentCallable);
+        
+        // If the lvalue is itself an increment, extract its underlying lvalue
+        // This handles cases like (numbers[x++])++ where the parentheses cause
+        // the inner expression to be treated as an increment
+        if (lvalue instanceof IrIncrement innerInc) {
+            lvalue = innerInc.lvalue();
+        }
+        
+        // Verify it's an lvalue
+        if (!(lvalue instanceof IrLvalue)) {
+            throw new SemanticAnalysisException("Increment/decrement requires an lvalue, found: " 
+                + lvalue.getClass().getSimpleName());
+        }
+        
+        // Lvalue type must be INT or DOUBLE
+        Type lvalueType = lvalue.type();
+        if (lvalueType != BuiltInType.INT && lvalueType != BuiltInType.DOUBLE) {
+            throw new SemanticAnalysisException("Increment/decrement only works on int and double lvalues, got: " + lvalueType);
+        }
+        
+        return new IrIncrement(increment.op(), (IrLvalue) lvalue, increment.isPrefix());
     }
 
     /**
