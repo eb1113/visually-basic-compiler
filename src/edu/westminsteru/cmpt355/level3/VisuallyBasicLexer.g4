@@ -32,7 +32,7 @@ NEW : 'OMG';
 THIS : 'this';
 
 //Types
-VOID: 'void';
+VOID: 'slay';
 INT_TYPE: 'int';
 DOUBLE_TYPE: 'double';
 STRING_TYPE: 'string';

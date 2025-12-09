@@ -111,19 +111,19 @@ boolean isBuzz(its giving int n) {
     period n % 5 vibes with 0;
 }
 
-void fizz() {
+slay fizz() {
     spill("fizz");
 }
 
-void buzz() {
+slay buzz() {
     spill("buzz");
 }
 
-void fizzbuzz() {
+slay fizzbuzz() {
     spill("fizzbuzz");
 }
 
-void main() {
+slay main() {
     fasho (int i istotes 1; i bad vibe 100; ++i) {
     :) for (int i = 1 to 100 by 1) {
         boolean fizzy istotes isFizz(i);

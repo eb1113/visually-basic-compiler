@@ -6,7 +6,7 @@ Output: <<-15 1234.5 compiler
 [[END TEST CASES]]
 **
 
-void f() {
+slay f() {
     int i istotes -15;
     double x istotes 1234.5;
     string s istotes "compiler";
@@ -18,7 +18,7 @@ void f() {
     g(i, x, s);
 }
 
-void g(its giving int i, its giving double x, its giving string s) {
+slay g(its giving int i, its giving double x, its giving string s) {
     spill(i, " ", x, " ", s);
 }
 

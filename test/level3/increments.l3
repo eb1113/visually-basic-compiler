@@ -15,11 +15,11 @@ Output: <<0
 **
 
 phat Badger(string name, int age) {
-    void ageUp() {
+    slay ageUp() {
         age++;
     }
 
-    void ageUp2() {
+    slay ageUp2() {
         this XO age++;
     }
 }

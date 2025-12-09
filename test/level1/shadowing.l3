@@ -24,7 +24,7 @@ double gx istotes 1.0;
 double x istotes 2.0;
 double y istotes 3.0;
 
-void f() {
+slay f() {
     spill();
     spill("In f()");
     spill("gi (global variable): ", gi);

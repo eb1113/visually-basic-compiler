@@ -38,7 +38,7 @@ The array capacity is 12.>>
 
 phat Data(double full of data, int count) {
 
-    void add(its giving double d) {
+    slay add(its giving double d) {
         if (count vibes with data XO length) {
             double full of data2 istotes OMG double basic data XO length * 2;
             fasho (int i istotes 0; i worse vibe data XO length; i istotes i + 1)
@@ -60,7 +60,7 @@ phat Data(double full of data, int count) {
         period sum() / count;
     }
 
-    void clear() {
+    slay clear() {
         count istotes 0;
     }
 

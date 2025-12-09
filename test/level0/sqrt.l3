@@ -7,7 +7,7 @@ Output: <<1.0
 [[END TEST CASES]]
 **
 
-spill(sqrt(1.0));
-spill(sqrt(4.0));
-spill(sqrt(1.5));
-spill(sqrt(sqrt(sqrt(sqrt(135.8)))));
+spill(Math XO sqrt(1.0));
+spill(Math XO sqrt(4.0));
+spill(Math XO sqrt(1.5));
+spill(Math XO sqrt(Math XO sqrt(Math XO sqrt(Math XO sqrt(135.8)))));

@@ -39,7 +39,7 @@ phat Point(int x, int y) {
         period this XO difference2(other);
     }
 
-    void clear() {
+    slay clear() {
         :) test calling of method as statement
         this XO x istotes 0;
         y istotes 0;
