@@ -26,7 +26,7 @@ double parsecsToMiles(its giving double pc) {
     period pc * 19173501441011.0;
 }
 
-void printResult(its giving string name, its giving double as, its giving double pc, its giving double mi) {
+slay printResult(its giving string name, its giving double as, its giving double pc, its giving double mi) {
     spill("Greetings ", name, "!");
     spill("A parallax of ", as, " arcseconds corresponds to a distance of ", pc, " parsecs, which is ", mi / 1000 / 1000 / 1000 / 1000, " trillion miles.");
 }
@@ -46,7 +46,7 @@ double inputDouble(its giving string prompt) {
  * functions (i.e. multiple functions with the same name), the JVM *does*, so
  * this function should not conflict with the void main(String[]) method.
  **
-void main() {
+slay main() {
     string name istotes inputName();
     double as istotes inputDouble("Parallax of how many arcseconds? ");
     double pc istotes parallaxArcsecondsToParsecs(as);

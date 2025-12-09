@@ -1,23 +1,23 @@
-/* math_methods.l3: Math._ methods
+** math_methods.l3: Math._ methods
 [[BEGIN TEST CASES]]
 Output: <<99
 12.0
 1838.265625
 0.7866278610665535
--0.23999982338098969
+-0.23999999999999994
 0.9999996829318346
 0.9999500004166653
 0.9992039901050427>>
 [[END TEST CASES]]
-*/
+**
 
-int sqrt = 99; // psych
-print(sqrt);                            // 99
-print(Math.sqrt(144));                  // 12.0
-print(Math.pow(3.5, 6));                // 1838.265625
-print(Math.exp(-0.24));                 // 0.7866278610665535
-print(Math.log(0.7866278610665535));    // -0.23999999999999994
+int sqrt istotes 99; :) psych
+spill(sqrt);                            :) 99
+spill(Math XO sqrt(144));                  :) 12.0
+spill(Math XO pow(3.5, 6));                :) 1838.265625
+spill(Math XO exp(-0.24));                 :) 0.7866278610665535
+spill(Math XO log(0.7866278610665535));    :) -0.23999999999999994
 
-print(Math.sin(1.57));                  // 0.9999996829318346
-print(Math.cos(0.01));                  // 0.9999500004166653
-print(Math.tan(1.57 / 2));              // 0.9992039901050427
+spill(Math XO sin(1.57));                  :) 0.9999996829318346
+spill(Math XO cos(0.01));                  :) 0.9999500004166653
+spill(Math XO tan(1.57 / 2));              :) 0.9992039901050427

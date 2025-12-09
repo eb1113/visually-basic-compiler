@@ -1,4 +1,4 @@
-/* arrays_basics.l3: array creation and subscripting
+** arrays_basics.l3: array creation and subscripting
 [[BEGIN TEST CASES]]
 Output: <<0
 99
@@ -13,49 +13,49 @@ null
 99,150
 99,150,99150,15099150,9915015099150>>
 [[END TEST CASES]]
-*/
+**
 
-int[] ints = new int[5];
-print(ints[0]);                 // 0
-ints[0] = 99;
-print(ints[0]);                 // 99
-ints[1] = 150;
-print(ints[0], ",", ints[1]);   // 99150
-ints[2] = 5 * ints[0] - 6 * ints[1];
-ints[3] = 5 * ints[1] - 6 * ints[2];
-ints[4] = 5 * ints[2] - 6 * ints[3];
-print(ints[0], ",",
-    ints[1], ",",
-    ints[2], ",",
-    ints[3], ",",
-    ints[4]);                   // 99,150,-405,3180,-21105
+int full of ints istotes OMG int basic 5;
+spill(ints basic 0);                 :) 0
+ints basic 0 istotes 99;
+spill(ints basic 0);                 :) 99
+ints basic 1 istotes 150;
+spill(ints basic 0, ",", ints basic 1);   :) 99150
+ints basic 2 istotes 5 * ints basic 0 - 6 * ints basic 1;
+ints basic 3 istotes 5 * ints basic 1 - 6 * ints basic 2;
+ints basic 4 istotes 5 * ints basic 2 - 6 * ints basic 3;
+spill(ints basic 0, ",",
+    ints basic 1, ",",
+    ints basic 2, ",",
+    ints basic 3, ",",
+    ints basic 4);                   :) 99,150,-405,3180,-21105
 
-double[] doubles = new double[5];
-print(doubles[0]);                  // 0.0
-doubles[0] = 99;
-print(doubles[0]);                  // 99.0
-doubles[1] = 150;
-print(doubles[0], ",", doubles[1]); // 99.0,150.0
-doubles[2] = 5 * doubles[0] - 6 * doubles[1];
-doubles[3] = 5 * doubles[1] - 6 * doubles[2];
-doubles[4] = 5 * doubles[2] - 6 * doubles[3];
-print(doubles[0], ",",
-    doubles[1], ",",
-    doubles[2], ",",
-    doubles[3], ",",
-    doubles[4]);                    // 99.0,150.0,-405.0,3180.0,-21105.0
+double full of doubles istotes OMG double basic 5;
+spill(doubles basic 0);                  :) 0.0
+doubles basic 0 istotes 99;
+spill(doubles basic 0);                  :) 99.0
+doubles basic 1 istotes 150;
+spill(doubles basic 0, ",", doubles basic 1); :) 99.0,150.0
+doubles basic 2 istotes 5 * doubles basic 0 - 6 * doubles basic 1;
+doubles basic 3 istotes 5 * doubles basic 1 - 6 * doubles basic 2;
+doubles basic 4 istotes 5 * doubles basic 2 - 6 * doubles basic 3;
+spill(doubles basic 0, ",",
+    doubles basic 1, ",",
+    doubles basic 2, ",",
+    doubles basic 3, ",",
+    doubles basic 4);                    :) 99.0,150.0,-405.0,3180.0,-21105.0
 
-string[] strings = new string[5];
-print(strings[0]);                  // null
-strings[0] = "99";
-print(strings[0]);                  // 99
-strings[1] = "150";
-print(strings[0], ",", strings[1]); // 99,150
-strings[2] = strings[0] + strings[1];
-strings[3] = strings[1] + strings[2];
-strings[4] = strings[2] + strings[3];
-print(strings[0], ",",
-    strings[1], ",",
-    strings[2], ",",
-    strings[3], ",",
-    strings[4]);                    // 99,150,99150,15099150,9915015099150
+string full of strings istotes OMG string basic 5;
+spill(strings basic 0);                  :) null
+strings basic 0 istotes "99";
+spill(strings basic 0);                  :) 99
+strings basic 1 istotes "150";
+spill(strings basic 0, ",", strings basic 1); :) 99,150
+strings basic 2 istotes strings basic 0 um strings basic 1;
+strings basic 3 istotes strings basic 1 um strings basic 2;
+strings basic 4 istotes strings basic 2 um strings basic 3;
+spill(strings basic 0, ",",
+    strings basic 1, ",",
+    strings basic 2, ",",
+    strings basic 3, ",",
+    strings basic 4);                    :) 99,150,99150,15099150,9915015099150

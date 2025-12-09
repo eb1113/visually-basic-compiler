@@ -1,15 +1,15 @@
-/* record_basics.l3: basic record stuff (construction, field access)
+** record_basics.l3: basic record stuff (construction, field access)
 [[BEGIN TEST CASES]]
 Output: <<Betty/33
 Frank/57>>
 [[END TEST CASES]]
-*/
+**
 
-record Badger(string name, int age) {}
+phat Badger(string name, int age) {}
 
-Badger betty = new Badger("Betty", 33);
-Badger frank = new Badger("Frank", 57);
+Badger betty istotes OMG Badger("Betty", 33);
+Badger frank istotes OMG Badger("Frank", 57);
 
-print(betty.name, "/", betty.age);      // Betty/33
-print(frank.name + "/" + frank.age);    // Frank/57
+spill(betty XO name, "/", betty XO age);      :) Betty/33
+spill(frank XO name um "/" um frank XO age);    :) Frank/57
 

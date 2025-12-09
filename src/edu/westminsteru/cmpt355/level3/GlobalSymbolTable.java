@@ -15,6 +15,8 @@ public class GlobalSymbolTable implements SymbolTable {
 
     private final Map<String, GlobalVariable> globalTable = new HashMap<String, GlobalVariable>();
     private final Map<String,Function> functionTable = new HashMap<String, Function>();
+    private final Map<String, RecordSymbolTable> recordTable = new HashMap<String, RecordSymbolTable>();
+    private final Map<String, RecordType> recordTypeTable = new HashMap<String, RecordType>();
 
     /**
      * Returns the (global) variable with the given name or an empty Optional if none is defined.
@@ -82,6 +84,58 @@ public class GlobalSymbolTable implements SymbolTable {
      */
     public List<GlobalVariable> getGlobalVariables() {
         return List.copyOf(globalTable.values());
+    }
+
+    /**
+     * Returns the record symbol table with the given name or an empty Optional if none is defined.
+     * @param name the name of the record to resolve
+     */
+    public Optional<RecordSymbolTable> resolveRecord(String name) {
+        if (recordTable.containsKey(name)) {
+            return Optional.ofNullable(recordTable.get(name));
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Defines a new record having the given name and symbol table.
+     * @param name the name of the record
+     * @param recordSymbolTable the symbol table containing the record's fields and methods
+     * @return the newly-defined record symbol table
+     * @throws DuplicateDefinitionException if there is a conflicting record with this name
+     */
+    public RecordSymbolTable defineRecord(String name, RecordSymbolTable recordSymbolTable) throws DuplicateDefinitionException {
+        if (recordTable.containsKey(name)) {
+            throw new DuplicateDefinitionException("Record " + name + " is already defined in this scope.");
+        } else {
+            recordTable.put(name, recordSymbolTable);
+            // Create and store  RecordType instance
+            RecordType rt = new RecordType(name, recordSymbolTable.getFields());
+            recordTypeTable.put(name, rt);
+            return recordSymbolTable;
+        }
+    }
+
+    /**
+     * Returns the resolved RecordType for the given record name.
+     * @param name the name of the record
+     * @return the defined/resolved RecordType, or empty if the record is not defined
+     */
+    public Optional<RecordType> resolveRecordType(String name) {
+        if (recordTypeTable.containsKey(name)) {
+            return Optional.of(recordTypeTable.get(name));
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Returns all record names defined in this symbol table.
+     * @return A set of all record names.
+     */
+    public java.util.Set<String> getAllRecordNames() {
+        return java.util.Set.copyOf(recordTable.keySet());
     }
 
 }

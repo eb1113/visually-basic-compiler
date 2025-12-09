@@ -18,18 +18,21 @@ options {
 program
 returns [AstProgram n]
     : elements=mixedElements EOF
-        // Separate functions and statements from all elements
+        // Separate functions, records, and statements from all elements
         {
         List<AstFunctionDeclaration> funcs = new ArrayList<>();
+        List<AstRecordDeclaration> records = new ArrayList<>();
         List<AstStatement> stmts = new ArrayList<>();
         for (AstStatement element : $elements.n) {
             if (element instanceof AstFunctionDeclaration funcDecl) {
                 funcs.add(funcDecl);
+            } else if (element instanceof AstRecordDeclaration recordDecl) {
+                records.add(recordDecl);
             } else {
                 stmts.add(element);
             }
         }
-        $n = new AstProgram(funcs, stmts);
+        $n = new AstProgram(funcs, records, stmts);
         }
     ;
 
@@ -43,11 +46,14 @@ returns [List<AstStatement> n]
     }
     ;
 
-// Mixed element (function or statement)
+// Mixed element (function, record, or statement)
 mixedElement
 returns [AstStatement n]
     : functionDeclarationStatement {
         $n = $functionDeclarationStatement.n;
+    }
+    | recordDeclaration {
+        $n = $recordDeclaration.n;
     }
     | statement {
         $n = $statement.n;
@@ -71,9 +77,6 @@ returns [AstStatement n]
     | returnStatement {
         $n = $returnStatement.n;
     }
-    | functionCallStatement {
-        $n = $functionCallStatement.n;
-    }
     | ifChain {
         $n = $ifChain.n;
     }
@@ -82,6 +85,12 @@ returns [AstStatement n]
     }
     | whileLoopStatement {
         $n = $whileLoopStatement.n;
+    }
+    | functionCallStatement {
+        $n = $functionCallStatement.n;
+    }
+    | expressionStatement {
+        $n = $expressionStatement.n;
     }
     | incrementStatement SEMI {
         $n = $incrementStatement.n;
@@ -104,23 +113,151 @@ returns [AstExpression n]
     }
   ;
 
+// Type parsing rule
+type
+returns [Type n]
+    : base=baseType arrayDecls+=arrayDeclToken* {
+        int dimensions = 0;
+        // Count dimensions from array declaration tokens
+        for (var decl : $arrayDecls) {
+            if (decl != null && decl.text != null) {
+                String text = decl.text;
+                if ("full of".equals(text)) {
+                    dimensions++;
+                } else if ("extra".equals(text)) {
+                    dimensions++;
+                } else if ("super duper".equals(text)) {
+                    dimensions++;
+                } else if (text.startsWith("thic")) {
+                    // Count 'c' characters: "thic" = 1, each 'c' adds 1
+                    dimensions++; // "thic" itself is 1 dimension
+                    int cCount = text.length() - 4; // Subtract "thic" length
+                    dimensions += cCount;
+                }
+            }
+        }
+        // Build ArrayType using ArrayType.of() pattern
+        Type result = $base.n;
+        for (int i = 0; i < dimensions; i++) {
+            result = ArrayType.of(result);
+        }
+        $n = result;
+    }
+    ;
+
+arrayDeclToken
+returns [String text]
+    : ARRAY_DECL_FULL_OF { $text = $ARRAY_DECL_FULL_OF.text; }
+    | ARRAY_DECL_EXTRA { $text = $ARRAY_DECL_EXTRA.text; }
+    | ARRAY_DECL_SUPER_DUPER { $text = $ARRAY_DECL_SUPER_DUPER.text; }
+    | ARRAY_DECL_THIC { $text = $ARRAY_DECL_THIC.text; }
+    ;
+
+baseType
+returns [Type n]
+    : INT_TYPE { $n = BuiltInType.INT; }
+    | DOUBLE_TYPE { $n = BuiltInType.DOUBLE; }
+    | STRING_TYPE { $n = BuiltInType.STRING; }
+    | BOOLEAN_TYPE { $n = BuiltInType.BOOLEAN; }
+    | id=IDENTIFIER {
+        // Record type - will be resolved during semantic analysis
+        // For now, we create a RecordType with empty fields map
+        // Semantic analysis will replace this with the actual record definition
+        $n = new RecordType($id.text, new java.util.HashMap<>());
+    }
+    ;
+
 variableDeclarationStatement
 returns [AstVariableDeclaration n]
     //int x = 2; int x = input("Hi");
-    : TYPE IDENTIFIER EQUALS rhs=rhsValue SEMI {
-        $n = new AstVariableDeclaration(Type.fromString($TYPE.text), $IDENTIFIER.text, Optional.of($rhs.n));
+    : t=type IDENTIFIER EQUALS rhs=rhsValue SEMI {
+        $n = new AstVariableDeclaration($t.n, $IDENTIFIER.text, Optional.of($rhs.n));
     }
     //int x;
-    | TYPE IDENTIFIER SEMI {
-        $n = new AstVariableDeclaration(Type.fromString($TYPE.text), $IDENTIFIER.text, Optional.empty());
+    | t=type IDENTIFIER SEMI {
+        $n = new AstVariableDeclaration($t.n, $IDENTIFIER.text, Optional.empty());
+    }
+    ;
+
+// Allow simple indicies (arr[5]), arithmetic indicies (arr[1*2]) or unary (arr[++i])
+// Doesn't allow logical operators (||, &&) or assignments
+indexExpr
+returns [AstExpression n]
+    : e=mulExpr { $n = $e.n; }
+    ;
+
+
+// Lvalue system - things that can appear on left side of assignment
+// Structure: lvalue : ID | subscript | fieldAccess
+// Uses iterative suffix approach to avoid left recursion
+lvalue
+returns [AstExpression n]
+    : base=lvalueBase {
+        $n = $base.n;
+    } (ARRAY_INDEX_INTO idx=indexExpr {
+        $n = new AstArraySubscript($n, $idx.n);
+    } | FIELD_OR_METHOD_ACCESS field=IDENTIFIER {
+        $n = new AstFieldAccess($n, $field.text);
+    })*
+    ;
+
+// Base for lvalues - things that can start an lvalue chain
+lvalueBase
+returns [AstExpression n]
+    : IDENTIFIER {
+        $n = new AstVariable($IDENTIFIER.text);
+    }
+    | THIS {
+        $n = new AstVariable("this");
+    }
+    | functionCallExpr {
+        // Allow function calls as base for lvalues (e.g., getArray()[0])
+        $n = $functionCallExpr.n;
+    }
+    | '(' e=expr ')' {
+        // Parenthesized expression can be an lvalue
+        $n = $e.n;
+    }
+    ;
+
+newExpr
+returns [AstExpression n]
+    : NEW t=type dims+=dimensionSpec+ {
+        // Array construction: OMG int basic 100 or OMG int basic 10 basic 20
+        // Extract base type and dimensions
+        Type arrayType = $t.n;
+        ScalarType baseType;
+        if (arrayType instanceof ArrayType at) {
+            baseType = at.baseType();
+        } else if (arrayType instanceof ScalarType st) {
+            baseType = st;
+        } else {
+            throw new RuntimeException("Array construction requires scalar or array base type");
+        }
+        java.util.List<AstExpression> dimensionExprs = new java.util.ArrayList<>();
+        for (var dim : $dims) {
+            dimensionExprs.add(dim.n);
+        }
+        $n = new AstArrayConstruction(baseType, dimensionExprs);
+    }
+    | NEW id=IDENTIFIER LPAREN args=argumentsList RPAREN {
+        // Record construction: OMG Point(1.2, 3.4)
+        $n = new AstRecordConstruction($id.text, $args.n);
+    }
+    ;
+
+dimensionSpec
+returns [AstExpression n]
+    : ARRAY_INDEX_INTO size=expr {
+        $n = $size.n;
     }
     ;
 
 variableAssignmentStatement
 returns [AstVariableAssignment n]
-    // x = 1;
-    : IDENTIFIER EQUALS rhs=rhsValue SEMI {
-        $n = new AstVariableAssignment($IDENTIFIER.text, $rhs.n);
+    // x = 1; arr basic 5 = 1; point XO x = 1;
+    : lv=lvalue EQUALS rhs=rhsValue SEMI {
+        $n = new AstVariableAssignment($lv.n, $rhs.n);
     }
     ;
 
@@ -134,16 +271,16 @@ returns [IncrementOp op]
 // Prefix increment: ++x or --x
 prefixInc
 returns [AstIncrement n]
-    : op=incOp id=IDENTIFIER {
-        $n = new AstIncrement($op.op, new AstVariable($id.text), true);
+    : op=incOp lv=lvalue {
+        $n = new AstIncrement($op.op, $lv.n, true);
     }
     ;
 
 // Postfix increment: x++ or x--
 postfixInc
 returns [AstIncrement n]
-    : id=IDENTIFIER op=incOp {
-        $n = new AstIncrement($op.op, new AstVariable($id.text), false);
+    : lv=lvalue op=incOp {
+        $n = new AstIncrement($op.op, $lv.n, false);
     }
     ;
 
@@ -203,7 +340,7 @@ returns [AstBlock n]
 // If statements
 ifChain
 returns [AstIf n]
-    //needs to have a seperate type of expression that always evaluates to a boolean
+    //needs to have a seperate oldType of expression that always evaluates to a boolean
     : IF LPAREN cond=expr RPAREN thenPart=embeddedStatement tail=elseIfOrElse {
           // tail.n is Optional<AstBlock>
           $n = new AstIf($cond.n, $thenPart.n, $tail.n);
@@ -230,18 +367,18 @@ returns [Optional<AstBlock> n]
 // Grammar rules init & update inside for loops (without semicolons)
 varDeclNoSemi
 returns [AstVariableDeclaration n]
-    : TYPE IDENTIFIER EQUALS rhs=rhsValue {
-        $n = new AstVariableDeclaration(Type.fromString($TYPE.text), $IDENTIFIER.text, Optional.of($rhs.n));
+    : t=type IDENTIFIER EQUALS rhs=rhsValue {
+        $n = new AstVariableDeclaration($t.n, $IDENTIFIER.text, Optional.of($rhs.n));
     }
-    | TYPE IDENTIFIER {
-        $n = new AstVariableDeclaration(Type.fromString($TYPE.text), $IDENTIFIER.text, Optional.empty());
+    | t=type IDENTIFIER {
+        $n = new AstVariableDeclaration($t.n, $IDENTIFIER.text, Optional.empty());
     }
     ;
 
 varAssignNoSemi
 returns [AstVariableAssignment n]
-    : IDENTIFIER EQUALS rhs=rhsValue {
-        $n = new AstVariableAssignment($IDENTIFIER.text, $rhs.n);
+    : lv=lvalue EQUALS rhs=rhsValue {
+        $n = new AstVariableAssignment($lv.n, $rhs.n);
     }
     ;
 
@@ -281,15 +418,15 @@ returns [Optional<AstStatement> n]
 // for ( TYPE var = start to end by step ) block  (Pascal-style)
 forLoopStatement
 returns [AstStatement n]
-    : FOR LPAREN init=forInit SEMI cond=forCondition SEMI upd=forUpdate RPAREN body=block {
+    : FOR LPAREN init=forInit SEMI cond=forCondition SEMI upd=forUpdate RPAREN body=embeddedStatement {
         // Java-style: for ( init ; cond ; update )
         $n = new AstFor($init.n, $cond.n, $upd.n, $body.n);
     }
-    | FOR LPAREN TYPE id=IDENTIFIER EQUALS startVal=expr TO endVal=expr BY stepVal=expr RPAREN body=block {
+    | FOR LPAREN t=type id=IDENTIFIER EQUALS startVal=expr TO endVal=expr BY stepVal=expr RPAREN body=embeddedStatement {
         // Pascal-style: for ( TYPE var = startVal to endVal by stepVal )
         // Build AstPascalFor directly - desugaring happens in semantic analysis
         $n = new AstPascalFor(
-            Type.fromString($TYPE.text),
+            $t.n,
             $id.text,
             $startVal.n,
             $endVal.n,
@@ -348,13 +485,62 @@ returns [AstAssembly n]
 functionDeclarationStatement
 returns [AstFunctionDeclaration n]
     //void f(int a, int b, int c) ()
-    : type=(VOID | TYPE) IDENTIFIER LPAREN params=parametersDeclarationList RPAREN body=block {
+    : VOID IDENTIFIER LPAREN params=parametersDeclarationList RPAREN body=block {
         $n = new AstFunctionDeclaration(
-            ReturnType.fromString($type.text),
+            ReturnType.VOID,
             $IDENTIFIER.text,
             $params.n,
             $body.n
         );
+    }
+    | t=type IDENTIFIER LPAREN params=parametersDeclarationList RPAREN body=block {
+        $n = new AstFunctionDeclaration(
+            $t.n,
+            $IDENTIFIER.text,
+            $params.n,
+            $body.n
+        );
+    }
+    ;
+
+// Record Declaration
+recordDeclaration
+returns [AstRecordDeclaration n]
+    // phat Point(double x, double y) { methods }
+    : RECORD_DECL id=IDENTIFIER LPAREN fields=recordFieldList RPAREN LBRACE methods=recordBody RBRACE {
+        java.util.Map<String, Type> fieldMap = new java.util.LinkedHashMap<>();
+        for (var field : $fields.n) {
+            fieldMap.put(field.name(), field.type());
+        }
+        $n = new AstRecordDeclaration($id.text, fieldMap, $methods.n);
+    }
+    ;
+
+recordFieldList
+returns [List<AstParameter> n]
+    : fields+=recordField (COMMA fields+=recordField)* {
+        $n = $fields.stream()
+            .map(node -> node.n)
+            .collect(toList());
+    }
+    | /* empty */ {
+        $n = new ArrayList<>();
+    }
+    ;
+
+recordField
+returns [AstParameter n]
+    : t=type id=IDENTIFIER {
+        $n = new AstParameter($t.n, $id.text);
+    }
+    ;
+
+recordBody
+returns [List<AstFunctionDeclaration> n]
+    : methods+=functionDeclarationStatement* {
+        $n = $methods.stream()
+            .map(node -> node.n)
+            .collect(toList());
     }
     ;
 
@@ -373,8 +559,8 @@ returns [List<AstParameter> n]
 parameterDeclaration
 returns [AstParameter n]
     //its giving int x -- for function declaration
-    : PARAMETER_PREAMBLE TYPE IDENTIFIER {
-        $n = new AstParameter(Type.fromString($TYPE.text), $IDENTIFIER.text);
+    : PARAMETER_PREAMBLE t=type IDENTIFIER {
+        $n = new AstParameter($t.n, $IDENTIFIER.text);
     }
     ;
 
@@ -400,13 +586,21 @@ returns [AstStatement n]
     }
     ;
 
+expressionStatement
+returns [AstStatement n]
+    // Match method calls as statements: expr XO methodName(args);
+    // Come after variableAssignmentStatement to avoid conflicts
+    : base=primaryBase FIELD_OR_METHOD_ACCESS field=IDENTIFIER LPAREN args=argumentsList RPAREN SEMI {
+        $n = new AstMethodCall($base.n, $field.text, $args.n);
+    }
+    ;
+
 functionCallExpr
 returns [AstFunctionCall n]
     : IDENTIFIER LPAREN args=argumentsList RPAREN {
         $n = new AstFunctionCall($IDENTIFIER.text, $args.n);
     }
     ;
-
 
 // Expressions with layered precedence
 // Precedence (lowest to highest): OR < AND < Comparisons < Additive < Multiplicative < Unary < Primary
@@ -495,6 +689,7 @@ returns [AstExpression n]
 unaryExpr
 returns [AstExpression n]
     : prefixInc { $n = $prefixInc.n; }
+    | postfixInc { $n = $postfixInc.n; }
     | '-' x=unaryExpr {
         $n = new AstUnary(UnaryOp.NEGATE, $x.n);
     }
@@ -508,20 +703,38 @@ returns [AstExpression n]
 
 primary
 returns [AstExpression n]
-    : SQRT '(' e=expr ')' {
-        $n = new AstSqrt($e.n);
+    : base=primaryBase {
+        $n = $base.n;
+    } (ARRAY_INDEX_INTO idx=indexExpr {
+        $n = new AstArraySubscript($n, $idx.n);
+    } | FIELD_OR_METHOD_ACCESS field=IDENTIFIER LPAREN args=argumentsList RPAREN {
+        // Method call: expr.field(args)
+        $n = new AstMethodCall($n, $field.text, $args.n);
+    } | FIELD_OR_METHOD_ACCESS field=IDENTIFIER {
+        // Field access: expr.field (no parentheses)
+        $n = new AstFieldAccess($n, $field.text);
+    })*
+    ;
+
+primaryBase
+returns [AstExpression n]
+    : '(' t=type ')' ue=unaryExpr {
+        $n = new AstCast($t.n, $ue.n);
     }
-    | '(' TYPE ')' ue=unaryExpr {
-        $n = new AstCast(Type.fromString($TYPE.text), $ue.n);
-    }
-    | fc=functionCallExpr {
-        $n = $fc.n;
+    | functionCallExpr {
+        $n = $functionCallExpr.n;
     }
     | '(' e=expr ')' {
         $n = $e.n;
     }
     | postfixInc {
         $n = $postfixInc.n;
+    }
+    | THIS {
+        $n = new AstVariable("this");
+    }
+    | newExpr {
+        $n = $newExpr.n;
     }
     | var=IDENTIFIER {
         $n = new AstVariable($var.text);

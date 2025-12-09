@@ -1,4 +1,4 @@
-/* increments.l3: test that increments work with various kinds of lvalues
+** increments.l3: test that increments work with various kinds of lvalues
 [[BEGIN TEST CASES]]
 Output: <<0
 2
@@ -12,42 +12,42 @@ Output: <<0
 19
 21>>
 [[END TEST CASES]]
-*/
+**
 
-record Badger(string name, int age) {
-    void ageUp() {
+phat Badger(string name, int age) {
+    slay ageUp() {
         age++;
     }
 
-    void ageUp2() {
-        this.age++;
+    slay ageUp2() {
+        this XO age++;
     }
 }
 
-int[] numbers = new int[10];
-print(numbers[3]++);        // 0
-print(++numbers[3]);        // 2
-int x = 2;
-/// ++numbers[++x]
-print(++numbers[++x]);      // 3
-/// numbers[x++]++
-print(numbers[x++]++);      // 3
-print(x, ",", numbers[3]);  // 4,4
+int full of numbers istotes OMG int basic 10;
+spill(numbers basic 3++);        :) 0
+spill(++numbers basic 3);        :) 2
+int x istotes 2;
+/// ++numbers[++x];
+spill(++numbers basic ++x);      :) 3
+/// numbers[x++]++;
+spill((numbers basic x++)++);      :) 3
+spill(x, ",", numbers basic 3);  :) 4,4
 
-Badger nellie = new Badger("Nellie", 15);
-print(nellie.age++);        // 15
-print(++nellie.age);        // 17
-nellie.ageUp();
-print(nellie.age);          // 18
-nellie.ageUp2();
-print(nellie.age);          // 19
+Badger nellie istotes OMG Badger("Nellie", 15);
+spill(nellie XO age++);        :) 15
+spill(++nellie XO age);        :) 17
+nellie XO ageUp();
+spill(nellie XO age);          :) 18
+nellie XO ageUp2();
+spill(nellie XO age);          :) 19
 
-Badger[] getBadgerArray() {
-    Badger[] cete = new Badger[5];
-    cete[0] = nellie;
-    cete[1] = nellie;
-    return cete;
+Badger full of getBadgerArray() {
+    Badger full of cete istotes OMG Badger basic 5;
+    cete basic 0 istotes nellie;
+    cete basic 1 istotes nellie;
+    period cete;
 }
 
-print(getBadgerArray()[1].age++);   // 19
-print(++getBadgerArray()[1].age);   // 21
+spill((getBadgerArray() basic 1) XO age++);   :) 19
+spill(++(getBadgerArray() basic 1) XO age);   :) 21

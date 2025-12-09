@@ -1,7 +1,7 @@
 package edu.westminsteru.cmpt355.level3.lang;
 
 public sealed interface ReturnType
-    permits Type, ReturnType.Void {
+        permits ReturnType.Void, Type {
 
     public static final ReturnType.Void VOID = Void.INSTANCE;
 
@@ -14,7 +14,7 @@ public sealed interface ReturnType
         if (s.equalsIgnoreCase("void")) {
             return ReturnType.VOID;
         } else {
-            return Type.fromString(s);
+            return Type.fromBuiltInString(s);
         }
     }
 

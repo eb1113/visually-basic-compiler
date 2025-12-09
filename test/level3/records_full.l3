@@ -1,4 +1,4 @@
-/* records_full.l3: tests of all record features
+** records_full.l3: tests of all record features
 [[BEGIN TEST CASES]]
 Output: <<p = Point[x=3,y=4]
 q = Point[x=0,y=5]
@@ -15,99 +15,99 @@ pq.reversed() = LineSegment[start=Point[x=0,y=5],end=Point[x=3,y=4]]
 pq.isDegenerate() = false
 pp.isDegenerate() = true>>
 [[END TEST CASES]]
-*/
+**
 
-record Point(int x, int y) {
+phat Point(int x, int y) {
 
     double modSquared() {
-        // test access to fields with and without 'this.'
-        return x * x + this.y * this.y;
+        :) test access to fields with and without 'this.'
+        period x * x + this XO y * this XO y;
     }
 
-    Point difference(Point other) {
-        // test calling constructor from inside class
-        return new Point(x - other.x, y - other.y);
+    Point difference(its giving Point other) {
+        :) test calling constructor from inside class
+        period OMG Point(x - other XO x, y - other XO y);
     }
 
-    Point difference2(Point other) {
-        // test calling another method of same class (without 'this.')
-        return difference(other);
+    Point difference2(its giving Point other) {
+        :) test calling another method of same class (without 'this.')
+        period difference(other);
     }
 
-    Point difference3(Point other) {
-        // test calling another method of same class (with 'this.')
-        return this.difference2(other);
+    Point difference3(its giving Point other) {
+        :) test calling another method of same class (with 'this.')
+        period this XO difference2(other);
     }
 
-    void clear() {
-        // test calling of method as statement
-        this.x = 0;
-        y = 0;
+    slay clear() {
+        :) test calling of method as statement
+        this XO x istotes 0;
+        y istotes 0;
     }
 
-    Point max(int x, int y) {
-        // test shadowing of fields by parameters
-        if (this.x > x)
-            x = this.x;
-        if (this.y > y)
-            y = this.y;
-        return new Point(x, y);
+    Point max(its giving int x, its giving int y) {
+        :) test shadowing of fields by parameters
+        if (this XO x good vibe x)
+            x istotes this XO x;
+        if (this XO y good vibe y)
+            y istotes this XO y;
+        period OMG Point(x, y);
     }
 
-    LineSegment to(Point other) {
-        // test call to constructor of another class
-        return new LineSegment(this, other);
+    LineSegment goTo(its giving Point other) {
+        :) test call to constructor of another class
+        period OMG LineSegment(this, other);
     }
 }
 
-record LineSegment(Point start, Point end) {
+phat LineSegment(Point start, Point end) {
 
     double lengthSquared() {
-        // test calling methods from another record
-        return start.difference(end).modSquared();
+        :) test calling methods from another record
+        period start XO difference(end) XO modSquared();
     }
 
     LineSegment reversed() {
-        // test calling constructor with non-primitive fields
-        return new LineSegment(end, start);
+        :) test calling constructor with non-primitive fields
+        period OMG LineSegment(end, start);
     }
 
     boolean isDegenerate() {
-        // test direct access to fields of another class
-        // (in our language, all fields/methods are public)
-        return start.x == end.x
-            && start.y == end.y;
+        :) test direct access to fields of another class
+        :) (in our language, all fields/methods are public)
+        period start XO x vibes with end XO x
+            and start XO y vibes with end XO y;
     }
 }
 
-Point p = new Point(3, 4);
-print("p = ", p);
-Point q = new Point(0, 5);
-print("q = " + q);
-Point r = p.difference(q);
-string rString = r;
-print("r = ", rString);
+Point p istotes OMG Point(3, 4);
+spill("p = ", p);
+Point q istotes OMG Point(0, 5);
+spill("q = " um q);
+Point r istotes p XO difference(q);
+string rString istotes r;
+spill("r = ", rString);
 
-print("p.modSquared() = ", p.modSquared());
-print("q - p = ", q.difference3(p));
+spill("p.modSquared() = ", p XO modSquared());
+spill("q - p = ", q XO difference3(p));
 
-Point s = new Point(100, 100);
-s.clear();
-print("Cleared s = ", s);
-s = s.max(25, 25);
-print("s.max(25, 25) = ", s);
-s = s.max(10, 100);
-print("s.max(10, 100) = ", s);
+Point s istotes OMG Point(100, 100);
+s XO clear();
+spill("Cleared s = ", s);
+s istotes s XO max(25, 25);
+spill("s.max(25, 25) = ", s);
+s istotes s XO max(10, 100);
+spill("s.max(10, 100) = ", s);
 
-LineSegment pq = new LineSegment(p, q);
-LineSegment qr = p.to(r);
+LineSegment pq istotes OMG LineSegment(p, q);
+LineSegment qr istotes p XO goTo(r);
 
-print("pq = ", pq);
-print("qr = " + qr);
+spill("pq = ", pq);
+spill("qr = " um qr);
 
-print("pq.lengthSquared() = ", pq.lengthSquared());
-print("pq.reversed() = ", pq.reversed());
-print("pq.isDegenerate() = ", pq.isDegenerate());
+spill("pq.lengthSquared() = ", pq XO lengthSquared());
+spill("pq.reversed() = ", pq XO reversed());
+spill("pq.isDegenerate() = ", pq XO isDegenerate());
 
-LineSegment pp = p.to(p);
-print("pp.isDegenerate() = ", pp.isDegenerate());
+LineSegment pp istotes p XO goTo(p);
+spill("pp.isDegenerate() = ", pp XO isDegenerate());

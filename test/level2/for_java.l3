@@ -35,7 +35,7 @@ fasho ( ; j worse vibe 5; ) {
 :) 100, 80, 60, 40, 20, 0
 int global istotes 0;
 
-void start() {
+slay start() {
     global istotes 100;
 }
 
@@ -43,7 +43,7 @@ boolean test() {
     period global better vibe 0;
 }
 
-void increment(its giving int step) {
+slay increment(its giving int step) {
     global istotes global + step;
 }
 

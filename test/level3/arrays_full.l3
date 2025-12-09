@@ -1,4 +1,4 @@
-/* arrays_full.l3: test all array features
+** arrays_full.l3: test all array features
 [[BEGIN TEST CASES]]
 Interaction: <<How many numbers? {{3}}
 data[0] = {{1}}
@@ -6,31 +6,34 @@ data[1] = {{2}}
 data[2] = {{3}}
 [1.0,2.0,3.0]
 [1,1,2,3,5,8,13,21,34]
-["fizzy","lifting","drink"]>>
+[fizzy,lifting,drink]>>
 --
 Interaction: <<How many numbers? {{0}}
-[]>>
+[]
+[1,1,2,3,5,8,13,21,34]
+[fizzy,lifting,drink]>>
 [[END TEST CASES]]
-*/
+**
 
-int length = input("How many numbers? ");
-double[] data = new double[length];
+int length istotes fetch("How many numbers? ");
+double full of data istotes OMG double basic length;
 
-for (int i = 0; i < data.length; i++) {
-    data[i] = input("data[" + i + "] = ");
+fasho (int i istotes 0; i worse vibe data XO length; i istotes i + 1) {
+    data basic i istotes fetch("data[" um i um "] = ");
 }
 
-print(data);
+spill(data);
 
-int[] intData = new int[9];
-intData[0] = 1;
-intData[1] = 1;
-for (int i = 2; i < intData.length; ++i)
-    intData[i] = intData[i - 2] + intData[i - 1];
-print(intData);
+int full of intData istotes OMG int basic 9;
+intData basic 0 istotes 1;
+intData basic 1 istotes 1;
+fasho (int i istotes 2; i worse vibe intData XO length; ++i) {
+    intData basic i istotes intData basic (i - 2) + intData basic (i - 1);
+}
+spill(intData);
 
-string[] stringData = new string[3];
-stringData[0] = "fizzy";
-stringData[1] = "lifting";
-stringData[2] = "drink";
-print(stringData);
+string full of stringData istotes OMG string basic 3;
+stringData basic 0 istotes "fizzy";
+stringData basic 1 istotes "lifting";
+stringData basic 2 istotes "drink";
+spill(stringData);

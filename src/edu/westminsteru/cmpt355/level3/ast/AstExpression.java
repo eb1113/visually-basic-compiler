@@ -6,6 +6,8 @@ package edu.westminsteru.cmpt355.level3.ast;
  */
 public sealed interface AstExpression extends AstNode, AstPrintArgument
         permits AstBinary, AstUnary,
-        AstSqrt, AstVariable, AstFunctionCall, AstInput,
-        AstString, AstInt, AstDouble, AstBoolean, AstIncrement, AstCast /* AST expression types go here */
+        AstVariable, AstFunctionCall, AstInput,
+        AstString, AstInt, AstDouble, AstBoolean, AstIncrement, AstCast,
+        AstArraySubscript, AstFieldAccess, AstArrayConstruction,
+        AstRecordConstruction, AstMethodCall, AstLvalue 
     { }

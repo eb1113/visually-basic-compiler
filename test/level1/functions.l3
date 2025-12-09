@@ -11,7 +11,7 @@ complex_function(58, 1.2, badger badger)
 [[END TEST CASES]]
 **
 
-void void_no_parameters() {
+slay void_no_parameters() {
     spill("void_no_parameters()");
 }
 
@@ -20,7 +20,7 @@ int int_no_parameters() {
     period 123;
 }
 
-void void_int_parameters(its giving int a, its giving int b, its giving int c) {
+slay void_int_parameters(its giving int a, its giving int b, its giving int c) {
     spill("void_int_parameters(", a, ", ", b, ", ", c, ")");
     period;
     spill("this line should never be printed");

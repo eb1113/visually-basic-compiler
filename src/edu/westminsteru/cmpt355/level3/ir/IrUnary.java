@@ -2,25 +2,32 @@ package edu.westminsteru.cmpt355.level3.ir;
 
 import edu.westminsteru.cmpt355.level3.InternalCompilerException;
 import edu.westminsteru.cmpt355.level3.ast.UnaryOp;
+import edu.westminsteru.cmpt355.level3.lang.BuiltInType;
 import edu.westminsteru.cmpt355.level3.lang.Type;
 
+/**
+ * Unary operation: op expr
+ * @param op The unary operation (NEGATE or NOT).
+ * @param expr The expression to apply the operation to (expr).
+ */
 public record IrUnary(UnaryOp op, IrExpression expr) implements IrExpression {
     @Override
     public Type type() {
         switch (op) {
             case NEGATE -> {
                 // Negate must be INT or DOUBLE
-                if (expr.type() != Type.INT && expr.type() != Type.DOUBLE) {
-                    throw new InternalCompilerException("Type mismatch in negate: " + expr.type());
+                Type exprType = expr.type();
+                if (exprType != BuiltInType.INT && exprType != BuiltInType.DOUBLE) {
+                    throw new InternalCompilerException("Type mismatch in negate: " + exprType);
                 }
-                return expr.type();
+                return exprType;
             }
             case NOT -> {
                 // NOT must be BOOLEAN
-                if (expr.type() != Type.BOOLEAN) {
+                if (expr.type() != BuiltInType.BOOLEAN) {
                     throw new InternalCompilerException("Type mismatch in NOT: " + expr.type() + " must be BOOLEAN");
                 }
-                return Type.BOOLEAN;
+                return BuiltInType.BOOLEAN;
             }
             default -> throw new InternalCompilerException("Unknown unary operation: " + op);
         }

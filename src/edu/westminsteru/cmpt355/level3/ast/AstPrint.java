@@ -2,6 +2,10 @@ package edu.westminsteru.cmpt355.level3.ast;
 
 import java.util.List;
 
+/**
+ * Represents a print statement in the AST.
+ * @param args The arguments to the print statement.
+ */
 public record AstPrint(List<AstPrintArgument> args)
     implements AstStatement{
 

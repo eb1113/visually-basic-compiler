@@ -22,7 +22,7 @@ double b istotes fetch("Enter b: ");
 double c istotes fetch("Enter c: ");
 
 double D istotes b*b - 4.0*a*c;
-double x1 istotes (-b + sqrt(D)) / (2.0*a);
-double x2 istotes (-b - sqrt(D)) / (2.0*a);
+double x1 istotes (-b + Math XO sqrt(D)) / (2.0*a);
+double x2 istotes (-b - Math XO sqrt(D)) / (2.0*a);
 
 spill("The roots are ", x1, " and ", x2, ".");

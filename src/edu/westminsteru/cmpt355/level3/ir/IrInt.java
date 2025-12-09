@@ -1,11 +1,15 @@
 package edu.westminsteru.cmpt355.level3.ir;
 
-import edu.westminsteru.cmpt355.level3.lang.Type;
+import edu.westminsteru.cmpt355.level3.lang.BuiltInType;
 
-public record IrInt(Type type, int value) implements IrExpression {
+/**
+ * Integer literal
+ * @param value The integer value.
+ */
+public record IrInt(int value) implements IrExpression {
     @Override
-    public Type type() {
-        return type;
+    public BuiltInType type() {
+        return BuiltInType.INT;
     }
 
     @Override

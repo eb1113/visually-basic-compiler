@@ -1,11 +1,14 @@
 package edu.westminsteru.cmpt355.level3.ir;
 
-import edu.westminsteru.cmpt355.level3.lang.Type;
-
+import edu.westminsteru.cmpt355.level3.lang.BuiltInType;
+/**
+ * Boolean literal: true or false
+ * @param value The boolean value.
+ */
 public record IrBoolean(boolean value) implements IrExpression {
     @Override
-    public Type type() {
-        return Type.BOOLEAN;
+    public BuiltInType type() {
+        return BuiltInType.BOOLEAN;
     }
 
     @Override
