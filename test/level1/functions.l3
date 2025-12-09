@@ -11,8 +11,8 @@ complex_function(58, 1.2, badger badger)
 [[END TEST CASES]]
 **
 
-slay slay_no_parameters() {
-    spill("slay_no_parameters()");
+slay void_no_parameters() {
+    spill("void_no_parameters()");
 }
 
 int int_no_parameters() {
@@ -20,8 +20,8 @@ int int_no_parameters() {
     period 123;
 }
 
-slay slay_int_parameters(its giving int a, its giving int b, its giving int c) {
-    spill("slay_int_parameters(", a, ", ", b, ", ", c, ")");
+slay void_int_parameters(its giving int a, its giving int b, its giving int c) {
+    spill("void_int_parameters(", a, ", ", b, ", ", c, ")");
     period;
     spill("this line should never be printed");
 }
@@ -36,8 +36,8 @@ double complex_function(its giving int x, its giving double y, its giving string
     period y * x;
 }
 
-slay_no_parameters();
+void_no_parameters();
 spill(int_no_parameters());
-slay_int_parameters(1, 4, 9);
+void_int_parameters(1, 4, 9);
 spill(int_int_parameters(1, 4, 9));
 spill(complex_function(58, 1.2, "badger badger"));
