@@ -28,9 +28,9 @@ int full of numbers istotes OMG int basic 10;
 spill(numbers basic 3++);        :) 0
 spill(++numbers basic 3);        :) 2
 int x istotes 2;
-/// ++numbers[++x]
+/// ++numbers[++x];
 spill(++numbers basic ++x);      :) 3
-/// numbers[x++]++
+/// numbers[x++]++;
 spill((numbers basic x++)++);      :) 3
 spill(x, ",", numbers basic 3);  :) 4,4
 
@@ -49,5 +49,5 @@ Badger full of getBadgerArray() {
     period cete;
 }
 
-spill(getBadgerArray() basic 1 XO age++);   :) 19
-spill(++getBadgerArray() basic 1 XO age);   :) 21
+spill((getBadgerArray() basic 1) XO age++);   :) 19
+spill(++(getBadgerArray() basic 1) XO age);   :) 21

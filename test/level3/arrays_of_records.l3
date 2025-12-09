@@ -1,17 +1,10 @@
 ** arrays_of_records.l3: test arrays of records
 [[BEGIN TEST CASES]]
-Output: <<0
-99
-99,150
-99,150,-405,3180,-21105
-0.0
-99.0
-99.0,150.0
-99.0,150.0,-405.0,3180.0,-21105.0
-null
-99
-99,150
-99,150,99150,15099150,9915015099150>>
+Output: <<p[0] = Point[x=1,y=4]
+p[1] = Point[x=5,y=16]
+p[2] = Point[x=8,y=8]
+p[3] = Point[x=-10,y=-10]
+p[4] = Point[x=-4,y=5]>>
 [[END TEST CASES]]
 **
 

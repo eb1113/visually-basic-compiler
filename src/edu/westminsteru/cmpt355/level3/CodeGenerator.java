@@ -1097,11 +1097,11 @@ public class CodeGenerator {
                     // Load array and index
                     generateExpression(arraySubscript.array());
                     generateExpression(arraySubscript.index());
-                    // Stack: [array, index]
+                    // Stack: [..., array, index]
                     
                     // Duplicate array and index before loading element
                     out.println("    dup2");
-                    // Stack: [array, index, array, index]
+                    // Stack: [..., array, index, array, index]
                     
                     // Load current value (pops array and index from top, pushes value)
                     if (elementType == BuiltInType.INT) {
@@ -1109,10 +1109,11 @@ public class CodeGenerator {
                     } else {
                         out.println("    daload");
                     }
-                    // Stack: [array, index, value]
+                    // Stack: [..., array, index, oldValue]
                     
-                    if (isPrefix) {
-                        // Prefix: increment first, then use new value
+                    if (isPrefix) { // PREFIX: ++A[i]
+                        // Stack: [..., array, index, oldValue]
+                        // Increment to get newValue
                         if (inc.op() == IncrementOp.INCREMENT) {
                             if (elementType == BuiltInType.INT) {
                                 out.println("    iconst_1");
@@ -1130,25 +1131,25 @@ public class CodeGenerator {
                                 out.println("    dsub");
                             }
                         }
-                        // Stack: [array, index, newValue]
-                        // Duplicate new value for return, then store
+                        // Stack: [..., array, index, newValue]
+                        // Use dup_x2 to put newValue correctly for iastore while keeping it for return
                         if (elementType == BuiltInType.INT) {
-                            out.println("    dup");
-                            out.println("    iastore");
+                            out.println("    dup_x2");    // [..., newValue, array, index, newValue]
+                            out.println("    iastore");   // pops newValue, index, array → [..., newValue]
                         } else {
-                            out.println("    dup2");
-                            out.println("    dastore");
+                            out.println("    dup2_x2");   // [..., newValue, array, index, newValue]
+                            out.println("    dastore");   // pops newValue, index, array → [..., newValue]
                         }
-                        // Stack: [newValue] - prefix returns new value
-                    } else {
-                        // Postfix: use old value, then increment
-                        // Duplicate old value first (for return)
+                        // Stack: [..., newValue] - prefix returns new value
+                    } else { // POSTFIX: A[i]++
+                        // Stack: [..., array, index, oldValue]
+                        // Use dup_x2 to put oldValue correctly for return while keeping array/index accessible
                         if (elementType == BuiltInType.INT) {
-                            out.println("    dup");
+                            out.println("    dup_x2");    // [..., oldValue, array, index, oldValue]
                         } else {
-                            out.println("    dup2");
+                            out.println("    dup2_x2");   // [..., oldValue, array, index, oldValue]
                         }
-                        // Stack: [array, index, value, value] (oldValue duplicated)
+                        // Stack: [..., oldValue, array, index, oldValue]
                         
                         // Increment
                         if (inc.op() == IncrementOp.INCREMENT) {
@@ -1168,41 +1169,26 @@ public class CodeGenerator {
                                 out.println("    dsub");
                             }
                         }
-                        // Stack: [array, index, oldValue, newValue]
-                        
-                        // Store new value: need array, index, newValue on top
-                        // Stack after increment: [array, index, oldValue, newValue]
-                        // We need to rearrange to [array, index, newValue] for store, keeping oldValue for return
+                        // Stack: [..., oldValue, array, index, newValue]
+                        // Store new value: iastore/dastore pops newValue, index, array
                         if (elementType == BuiltInType.INT) {
-                            // Stack: [array, index, oldValue, newValue]
-                            // Swap oldValue and newValue to get newValue in position for store
-                            out.println("    swap");      // Swap: [array, index, newValue, oldValue]
-                            // Now iastore needs [array, index, newValue] on top
-                            // iastore pops 3 values: array, index, newValue
-                            // After iastore, oldValue will remain on stack: [oldValue]
-                            out.println("    iastore");   // Store: pops array, index, newValue, leaves oldValue
+                            out.println("    iastore");   // pops newValue, index, array → [..., oldValue]
                         } else {
-                            // Stack: [array, index, oldValue, newValue]
-                            // Swap oldValue and newValue
-                            out.println("    swap2");     // Swap: [array, index, newValue, oldValue]
-                            // dastore pops 3 2-slot values: array, index, newValue
-                            // After dastore, oldValue will remain on stack: [oldValue]
-                            out.println("    dastore");   // Store: pops array, index, newValue, leaves oldValue
+                            out.println("    dastore");   // pops newValue, index, array → [..., oldValue]
                         }
-                        // Stack: [oldValue] - postfix returns old value
+                        // Stack: [..., oldValue] - postfix returns old value
                     }
                 } else if (inc.lvalue() instanceof IrFieldAccess fieldAccess) {
                     // Field access increment
                     Type fieldType = fieldAccess.fieldType();
-                    boolean isPrefix = inc.isPrefix();
                     
                     if (fieldType != BuiltInType.INT && fieldType != BuiltInType.DOUBLE) {
                         throw new IllegalArgumentException("Increment only works on int and double fields");
                     }
                     
-                    // Load record and current field value
+                    // Load record expression
                     generateExpression(fieldAccess.record());
-                    // Stack: [record]
+                    // Stack: [..., record]
                     
                     Type recordType = fieldAccess.record().type();
                     if (!(recordType instanceof RecordType)) {
@@ -1210,89 +1196,11 @@ public class CodeGenerator {
                     }
                     
                     RecordType rt = (RecordType) recordType;
-                    String recordName = rt.name().replace('.', '/');
-                    String fieldDescriptor = fieldAccess.fieldType().getDescriptor();
-                    
-                    // Get current field value
-                    out.printf("    dup%n"); // Duplicate record for later putfield
-                    out.printf("    getfield %s %s %s%n", recordName, fieldAccess.fieldName(), fieldDescriptor);
-                    // Stack: [record, value]
-                    
-                    if (isPrefix) {
-                        // Prefix: increment first, then use new value
-                        if (inc.op() == IncrementOp.INCREMENT) {
-                            if (fieldType == BuiltInType.INT) {
-                                out.println("    iconst_1");
-                                out.println("    iadd");
-                            } else {
-                                out.println("    dconst_1");
-                                out.println("    dadd");
-                            }
-                        } else { // DECREMENT
-                            if (fieldType == BuiltInType.INT) {
-                                out.println("    iconst_1");
-                                out.println("    isub");
-                            } else {
-                                out.println("    dconst_1");
-                                out.println("    dsub");
-                            }
-                        }
-                        // Stack: [record, newValue]
-                        // Duplicate new value for return, then store
-                        if (fieldType == BuiltInType.INT) {
-                            out.println("    dup_x1"); // Duplicate newValue below record
-                            out.println("    swap");   // Swap to get: newValue, record, newValue
-                            out.println("    pop");    // Remove duplicate
-                            out.printf("    putfield %s %s %s%n", recordName, fieldAccess.fieldName(), fieldDescriptor);
-                        } else {
-                            out.println("    dup2_x1"); // Duplicate newValue below record
-                            out.println("    pop2");     // Remove duplicate
-                            out.printf("    putfield %s %s %s%n", recordName, fieldAccess.fieldName(), fieldDescriptor);
-                            out.println("    dup2");     // Duplicate newValue for return
-                        }
-                        // Stack: [newValue] - prefix returns new value
+
+                    if (inc.isPrefix()) {
+                        generateFieldPrefixIncrement(fieldType, rt, fieldAccess.fieldName(), inc.op());
                     } else {
-                        // Postfix: use old value, then increment
-                        // Duplicate old value first
-                        if (fieldType == BuiltInType.INT) {
-                            out.println("    dup");
-                        } else {
-                            out.println("    dup2");
-                        }
-                        // Stack: [record, value, value]
-                        
-                        // Increment
-                        if (inc.op() == IncrementOp.INCREMENT) {
-                            if (fieldType == BuiltInType.INT) {
-                                out.println("    iconst_1");
-                                out.println("    iadd");
-                            } else {
-                                out.println("    dconst_1");
-                                out.println("    dadd");
-                            }
-                        } else { // DECREMENT
-                            if (fieldType == BuiltInType.INT) {
-                                out.println("    iconst_1");
-                                out.println("    isub");
-                            } else {
-                                out.println("    dconst_1");
-                                out.println("    dsub");
-                            }
-                        }
-                        // Stack: [record, oldValue, newValue]
-                        
-                        // Store new value: swap to get record, newValue, then store
-                        if (fieldType == BuiltInType.INT) {
-                            out.println("    swap"); // Swap oldValue and newValue
-                            out.println("    dup_x1"); // Duplicate newValue below oldValue
-                            out.println("    swap"); // Swap back
-                            out.printf("    putfield %s %s %s%n", recordName, fieldAccess.fieldName(), fieldDescriptor);
-                        } else {
-                            out.println("    dup2_x1"); // Duplicate newValue below oldValue
-                            out.println("    pop2");    // Remove duplicate
-                            out.printf("    putfield %s %s %s%n", recordName, fieldAccess.fieldName(), fieldDescriptor);
-                        }
-                        // Stack: [oldValue] - postfix returns old value
+                        generateFieldPostfixIncrement(fieldType, rt, fieldAccess.fieldName(), inc.op());
                     }
                 } else {
                     throw new InternalCompilerException("Increment on unknown lvalue type: " + inc.lvalue().getClass().getSimpleName());
@@ -1300,6 +1208,101 @@ public class CodeGenerator {
             }
             default -> throw new IllegalArgumentException("Unknown expression: " + expr);
         }
+    }
+
+    /**
+     * Generates code for prefix field increment (++field).
+     * Stack: Input [..., record] -> Output [..., newValue]
+     * record.field = newValue
+     */
+    private void generateFieldPrefixIncrement(Type fieldType, RecordType recordType,
+                                             String fieldName, IncrementOp op) {
+        String recordName = recordType.name().replace('.', '/');
+        String fieldDescriptor = fieldType.getDescriptor();
+        
+        // Stack: [..., record]
+        // Duplicate record and load old field value
+        out.println("    dup");
+        out.printf("    getfield %s %s %s%n", recordName, fieldName, fieldDescriptor);
+        // Stack: [..., record, oldValue]
+        
+        // Compute new value
+        if (op == IncrementOp.INCREMENT) {
+            if (fieldType == BuiltInType.INT) {
+                out.println("    iconst_1");
+                out.println("    iadd");
+            } else {
+                out.println("    dconst_1");
+                out.println("    dadd");
+            }
+        } else { // DECREMENT
+            if (fieldType == BuiltInType.INT) {
+                out.println("    iconst_1");
+                out.println("    isub");
+            } else {
+                out.println("    dconst_1");
+                out.println("    dsub");
+            }
+        }
+        // Stack: [..., record, newValue]
+        
+        // Store updated field, but keep new on stack
+        if (fieldType == BuiltInType.INT) {
+            out.println("    dup_x1"); // [..., newValue, record, newValue]
+        } else {
+            out.println("    dup2_x1"); // [..., newValue_high, newValue_low, record, newValue_high, newValue_low]
+        }
+        out.printf("    putfield %s %s %s%n", recordName, fieldName, fieldDescriptor);
+        // Stack: [..., newValue] - putfield consumed record and newValue
+    }
+
+    /**
+     * Generates code for postfix field increment (field++).
+     * Stack: Input [..., record] -> Output [..., oldValue]
+     * record.field = oldValue ± 1
+     */
+    private void generateFieldPostfixIncrement(Type fieldType, RecordType recordType,
+                                              String fieldName, IncrementOp op) {
+        String recordName = recordType.name().replace('.', '/');
+        String fieldDescriptor = fieldType.getDescriptor();
+        
+        // Stack: [..., record]
+        // Duplicate record and load old field value
+        out.println("    dup");
+        out.printf("    getfield %s %s %s%n", recordName, fieldName, fieldDescriptor);
+        // Stack: [..., record, oldValue]
+        
+        // Duplicate oldValue for return, then increment
+        if (fieldType == BuiltInType.INT) {
+            out.println("    dup_x1"); // [..., oldValue, record, oldValue]
+        } else {
+            out.println("    dup2_x1"); // [..., oldValue_high, oldValue_low, record, oldValue_high, oldValue_low]
+        }
+        
+        // Increment
+        if (op == IncrementOp.INCREMENT) {
+            if (fieldType == BuiltInType.INT) {
+                out.println("    iconst_1");
+                out.println("    iadd");
+            } else {
+                out.println("    dconst_1");
+                out.println("    dadd");
+            }
+        } else { // DECREMENT
+            if (fieldType == BuiltInType.INT) {
+                out.println("    iconst_1");
+                out.println("    isub");
+            } else {
+                out.println("    dconst_1");
+                out.println("    dsub");
+            }
+        }
+        // Stack: [..., oldValue, record, newValue] (for INT)
+        // or [..., oldValue_high, oldValue_low, record, newValue_high, newValue_low] (for DOUBLE)
+        
+        // Store updated field
+        out.printf("    putfield %s %s %s%n", recordName, fieldName, fieldDescriptor);
+        // Stack: [..., oldValue] - putfield consumed record and newValue
     }
 
     /** Generate code for a type cast */
@@ -1528,14 +1531,16 @@ public class CodeGenerator {
         // Generate constructor
         generateRecordConstructor(recordName, jvmName, fieldNames, fields);
         
-        // Generate toString() method
-        generateRecordToString(recordName, jvmName, fieldNames, fields);
-        
-        // Generate user-defined methods
-        // Get method IR bodies from IrProgram
+        // Get method IR bodies from IrProgram and methods map
         List<IrFunctionDeclaration> methodBodies = program.recordMethods().getOrDefault(recordName, List.of());
         Map<String, Method> methods = recordTable.getMethods();
         
+        // Generate toString() method (only if not user-defined)
+        if (!methods.containsKey("toString")) {
+            generateRecordToString(recordName, jvmName, fieldNames, fields);
+        }
+        
+        // Generate user-defined methods
         // Match method bodies with method signatures
         for (IrFunctionDeclaration methodBody : methodBodies) {
             Method method = methods.get(methodBody.name());

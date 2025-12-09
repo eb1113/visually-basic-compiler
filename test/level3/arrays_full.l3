@@ -6,10 +6,12 @@ data[1] = {{2}}
 data[2] = {{3}}
 [1.0,2.0,3.0]
 [1,1,2,3,5,8,13,21,34]
-["fizzy","lifting","drink"]>>
+[fizzy,lifting,drink]>>
 --
 Interaction: <<How many numbers? {{0}}
-[]>>
+[]
+[1,1,2,3,5,8,13,21,34]
+[fizzy,lifting,drink]>>
 [[END TEST CASES]]
 **
 
@@ -26,7 +28,7 @@ int full of intData istotes OMG int basic 9;
 intData basic 0 istotes 1;
 intData basic 1 istotes 1;
 fasho (int i istotes 2; i worse vibe intData XO length; ++i) {
-    intData basic i istotes intData basic i - 2 + intData basic i - 1;
+    intData basic i istotes intData basic (i - 2) + intData basic (i - 1);
 }
 spill(intData);
 

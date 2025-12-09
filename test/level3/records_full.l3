@@ -54,7 +54,7 @@ phat Point(int x, int y) {
         period OMG Point(x, y);
     }
 
-    LineSegment to(its giving Point other) {
+    LineSegment goTo(its giving Point other) {
         :) test call to constructor of another class
         period OMG LineSegment(this, other);
     }
@@ -100,7 +100,7 @@ s istotes s XO max(10, 100);
 spill("s.max(10, 100) = ", s);
 
 LineSegment pq istotes OMG LineSegment(p, q);
-LineSegment qr istotes p XO to(r);
+LineSegment qr istotes p XO goTo(r);
 
 spill("pq = ", pq);
 spill("qr = " um qr);
@@ -109,5 +109,5 @@ spill("pq.lengthSquared() = ", pq XO lengthSquared());
 spill("pq.reversed() = ", pq XO reversed());
 spill("pq.isDegenerate() = ", pq XO isDegenerate());
 
-LineSegment pp istotes p XO to(p);
+LineSegment pp istotes p XO goTo(p);
 spill("pp.isDegenerate() = ", pp XO isDegenerate());
