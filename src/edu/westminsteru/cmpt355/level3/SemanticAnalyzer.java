@@ -1193,12 +1193,46 @@ public class SemanticAnalyzer {
     private IrIncrement analyzeIncrement(AstIncrement increment,
                                          SymbolTable table,
                                          Callable currentCallable) throws SemanticAnalysisException {
-        // Analyze the lvalue (can be variable, array subscript, or field access)
-        IrExpression lvalue = analyzeExpression(increment.lvalue(), table, currentCallable);
+
+        // Special case: Handle numbers[x++]++ pattern
+        // Detect: outer increment with inner increment on array subscript where index is a simple variable
+        if (increment.lvalue() instanceof AstIncrement innerAstInc &&
+            innerAstInc.lvalue() instanceof AstArraySubscript arrayAst &&
+            arrayAst.index() instanceof AstVariable &&
+            !innerAstInc.isPrefix() && !increment.isPrefix() &&
+            innerAstInc.op() == increment.op()) {
+            // The numbers[x++]++ pattern
+            // Inner increment should be treated as the index increment, not as an increment on the array element
+            
+            // Analyze the array expression
+            IrExpression arrayExpr = analyzeExpression(arrayAst.array(), table, currentCallable);
+            if (!(arrayExpr.type() instanceof ArrayType at)) {
+                throw new SemanticAnalysisException("Array subscript requires array type, found: " + arrayExpr.type());
+            }
+            Type elementType = at.componentType();
+            
+            // Build a synthetic AstIncrement representing x++ for the index
+            AstIncrement syntheticIndexInc = new AstIncrement(increment.op(), arrayAst.index(), false);
+            IrIncrement indexIncIr = analyzeIncrement(syntheticIndexInc, table, currentCallable);
+            if (indexIncIr.type() != BuiltInType.INT) {
+                throw new SemanticAnalysisException("Array index must be int, found: " + indexIncIr.type());
+            }
+            
+            // Build the IrArraySubscript with the incrementing index
+            IrArraySubscript irSub = new IrArraySubscript(arrayExpr, indexIncIr, elementType);
+            
+            // Verify element type is incrementable
+            if (elementType != BuiltInType.INT && elementType != BuiltInType.DOUBLE) {
+                throw new SemanticAnalysisException("Increment only works on int/double array elements, got: " + elementType);
+            }
+            
+            // Create the outer IrIncrement on this array element
+            return new IrIncrement(increment.op(), irSub, increment.isPrefix());
+        }
         
-        // If the lvalue is itself an increment, extract its underlying lvalue
-        // This handles cases like (numbers[x++])++ where the parentheses cause
-        // the inner expression to be treated as an increment
+        // Normal path: Analyze the lvalue (can be variable, array subscript, or field access)
+        IrExpression lvalue = analyzeExpression(increment.lvalue(), table, currentCallable);
+
         if (lvalue instanceof IrIncrement innerInc) {
             lvalue = innerInc.lvalue();
         }
