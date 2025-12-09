@@ -11,7 +11,7 @@ complex_function(58, 1.2, badger badger)
 [[END TEST CASES]]
 **
 
-slay void_no_parameters() {
+slay slay_no_parameters() {
     spill("void_no_parameters()");
 }
 
