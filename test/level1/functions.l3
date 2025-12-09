@@ -12,7 +12,7 @@ complex_function(58, 1.2, badger badger)
 **
 
 slay slay_no_parameters() {
-    spill("void_no_parameters()");
+    spill("slay_no_parameters()");
 }
 
 int int_no_parameters() {
