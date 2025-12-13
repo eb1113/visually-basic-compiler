@@ -17,8 +17,8 @@ true>>
 [[END TEST CASES]]
 **
 
-boolean T istotes true;
-boolean F istotes false;
+boolean T istotes literally;
+boolean F istotes nah;
 
 spill(T);
 spill(F);

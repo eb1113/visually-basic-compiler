@@ -14,14 +14,14 @@ E2>>
 
 :) (your program should print all the letters except for Xs)
 
-if (true) {
+if (literally) {
     spill("A1");
     spill("A2");
 } whateva {
     spill("X0");
 }
 
-if (false) {
+if (no way) {
     spill("X11");
     spill("X12");
 } whateva {
@@ -29,34 +29,34 @@ if (false) {
     spill("B2");
 }
 
-if (true) {
+if (2 legit) {
     spill("C");
-} as if (true) {
+} as if (literally) {
     spill("X2");
-} as if (true) {
+} as if (2 legit) {
     spill("X3");
 } whateva {
     spill("X4");
 }
 
-if (false) {
+if (nah) {
     spill("X5");
-} as if (false) {
+} as if (no way) {
     spill("X6");
-} as if (false) {
+} as if (nah) {
     spill("X7");
-} as if (true) {
+} as if (literally) {
     spill("D1");
     spill("D2");
 } whateva {
     spill("X8");
 }
 
-if (false) {
+if (no way) {
     spill("X9");
-} as if (false) {
+} as if (nah) {
     spill("X10");
-} as if (false) {
+} as if (no way) {
     spill("X11");
 } whateva {
     spill("E1");

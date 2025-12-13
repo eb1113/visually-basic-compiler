@@ -32,9 +32,9 @@ spill((int)"35");
 spill((double)"9.81");
 spill((string)"cheese");
 
-spill((boolean)true);
+spill((boolean)literally);
 spill((boolean)"true");
-spill((string)true);
+spill((string)literally);
 
 spill((double)9/5);
 spill((string)1+2);

@@ -179,11 +179,123 @@ returns [AstVariableDeclaration n]
     }
     ;
 
+// Primary expression without array subscripts (for dimensions and indices)
+primaryNoSubscript
+returns [AstExpression n]
+    : base=primaryNoSubscriptBase {
+        $n = $base.n;
+    } (FIELD_OR_METHOD_ACCESS field=IDENTIFIER LPAREN args=argumentsList RPAREN {
+        // Method call: expr.field(args)
+        $n = new AstMethodCall($n, $field.text, $args.n);
+    } | FIELD_OR_METHOD_ACCESS field=IDENTIFIER {
+        // Field access: expr.field (no parentheses)
+        $n = new AstFieldAccess($n, $field.text);
+    })*
+    ;
+
+primaryNoSubscriptBase
+returns [AstExpression n]
+    : LPAREN t=type RPAREN ue=unaryExprNoSubscript {
+        $n = new AstCast($t.n, $ue.n);
+    }
+    | functionCallExpr {
+        $n = $functionCallExpr.n;
+    }
+    | LPAREN e=addExprNoSubscript RPAREN {
+        $n = $e.n;
+    }
+    | postfixInc {
+        $n = $postfixInc.n;
+    }
+    | THIS {
+        $n = new AstVariable("this");
+    }
+    | newExpr {
+        $n = $newExpr.n;
+    }
+    | var=IDENTIFIER {
+        $n = new AstVariable($var.text);
+    }
+    | INT {
+        $n = new AstInt(Integer.parseInt($INT.text));
+    }
+    | DOUBLE {
+        $n = new AstDouble(Double.parseDouble($DOUBLE.text));
+    }
+    | BOOLEAN {
+        boolean boolValue;
+        String text = $BOOLEAN.text;
+        if ("literally".equals(text) || "2 legit".equals(text)) {
+            boolValue = true;
+        } else if ("nah".equals(text) || "no way".equals(text)) {
+            boolValue = false;
+        } else {
+            throw new RuntimeException("Unknown boolean literal: " + text);
+        }
+        $n = new AstBoolean(boolValue);
+    }
+    | str=STRING_LITERAL {
+        $n = new AstString($str.text);
+    }
+    ;
+
+// Unary expression without array subscripts
+unaryExprNoSubscript
+returns [AstExpression n]
+    : prefixInc { $n = $prefixInc.n; }
+    | postfixInc { $n = $postfixInc.n; }
+    | SUB x=unaryExprNoSubscript {
+        $n = new AstUnary(UnaryOp.NEGATE, $x.n);
+    }
+    | NOT x=unaryExprNoSubscript {
+        $n = new AstUnary(UnaryOp.NOT, $x.n);
+    }
+    | primaryNoSubscript {
+        $n = $primaryNoSubscript.n;
+    }
+    ;
+
+// Multiplicative expression without array subscripts
+mulExprNoSubscript
+returns [AstExpression n]
+    : l=mulExprNoSubscript op=(MUL | DIV | MOD) r=unaryExprNoSubscript {
+        BinaryOp binOp;
+        if($op.getType() == VisuallyBasicLexer.MUL)
+            binOp = BinaryOp.MUL;
+        else if($op.getType() == VisuallyBasicLexer.MOD)
+            binOp = BinaryOp.MOD;
+        else
+            binOp = BinaryOp.DIV;
+        $n = new AstBinary(binOp, $l.n, $r.n);
+    }
+    | unaryExprNoSubscript {
+        $n = $unaryExprNoSubscript.n;
+    }
+    ;
+
+// Additive expression without array subscripts
+addExprNoSubscript
+returns [AstExpression n]
+    : l=addExprNoSubscript op=(ADD | SUB) r=mulExprNoSubscript {
+        BinaryOp binOp;
+        if($op.getType() == VisuallyBasicLexer.ADD)
+            binOp = BinaryOp.ADD;
+        else
+            binOp = BinaryOp.SUB;
+        $n = new AstBinary(binOp, $l.n, $r.n);
+    }
+    | mulExprNoSubscript {
+        $n = $mulExprNoSubscript.n;
+    }
+    ;
+
 // Allow simple indicies (arr[5]), arithmetic indicies (arr[1*2]) or unary (arr[++i])
-// Doesn't allow logical operators (||, &&) or assignments
+// Doesn't allow logical operators (||, &&), assignments, or nested array subscripts
+// Note: Addition/subtraction in indices requires parentheses: arr[(i-1)] not arr[i-1]
 indexExpr
 returns [AstExpression n]
-    : e=mulExpr { $n = $e.n; }
+    : e=mulExprNoSubscript { $n = $e.n; }
+    | LPAREN exprWithAdd=addExprNoSubscript RPAREN { $n = $exprWithAdd.n; }
     ;
 
 
@@ -248,7 +360,7 @@ returns [AstExpression n]
 
 dimensionSpec
 returns [AstExpression n]
-    : ARRAY_INDEX_INTO size=expr {
+    : ARRAY_INDEX_INTO size=addExprNoSubscript {
         $n = $size.n;
     }
     ;
@@ -746,7 +858,16 @@ returns [AstExpression n]
         $n = new AstDouble(Double.parseDouble($DOUBLE.text));
     }
     | BOOLEAN {
-        $n = new AstBoolean(Boolean.parseBoolean($BOOLEAN.text));
+        boolean boolValue;
+        String text = $BOOLEAN.text;
+        if ("literally".equals(text) || "2 legit".equals(text)) {
+            boolValue = true;
+        } else if ("nah".equals(text) || "no way".equals(text)) {
+            boolValue = false;
+        } else {
+            throw new RuntimeException("Unknown boolean literal: " + text);
+        }
+        $n = new AstBoolean(boolValue);
     }
     | str=STRING_LITERAL {
         $n = new AstString($str.text);

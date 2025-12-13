@@ -1,0 +1,249 @@
+** multidimensional_arrays.l3: test multidimensional array construction
+[[BEGIN TEST CASES]]
+Output: <<0
+1
+2
+3
+4
+5
+0.0
+1.0
+2.0
+3.0
+4.0
+null
+a
+b
+c
+d
+0
+1
+2
+3
+4
+5
+6
+7
+8
+0
+1
+2
+3
+4
+5
+6
+7
+0
+1
+2
+3
+4
+5
+6
+7
+0
+1
+2
+3
+4
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+0
+1
+2
+3
+4
+5
+6
+7>>
+[[END TEST CASES]]
+**
+
+:) Test 1: 2D int array with "full of full of"
+int full of full of matrix istotes OMG int basic 2 basic 3;
+spill(matrix basic 0 basic 0);                 :) 0
+matrix basic 0 basic 0 istotes 1;
+matrix basic 0 basic 1 istotes 2;
+matrix basic 0 basic 2 istotes 3;
+matrix basic 1 basic 0 istotes 4;
+matrix basic 1 basic 1 istotes 5;
+matrix basic 1 basic 2 istotes 6;
+spill(matrix basic 0 basic 0);                 :) 1
+spill(matrix basic 0 basic 1);                 :) 2
+spill(matrix basic 0 basic 2);                 :) 3
+spill(matrix basic 1 basic 0);                 :) 4
+spill(matrix basic 1 basic 1);                 :) 5
+
+:) Test 2: 2D double array with "extra full of"
+double extra full of grid istotes OMG double basic 2 basic 2;
+spill(grid basic 0 basic 0);                  :) 0.0
+grid basic 0 basic 0 istotes 1.0;
+grid basic 0 basic 1 istotes 2.0;
+grid basic 1 basic 0 istotes 3.0;
+grid basic 1 basic 1 istotes 4.0;
+spill(grid basic 0 basic 0);                  :) 1.0
+spill(grid basic 0 basic 1);                   :) 2.0
+spill(grid basic 1 basic 0);                      :) 3.0
+spill(grid basic 1 basic 1);                   :) 4.0
+
+:) Test 3: 2D string array with "super duper full of"
+string super duper full of words istotes OMG string basic 2 basic 2;
+spill(words basic 0 basic 0);                  :) null
+words basic 0 basic 0 istotes "a";
+words basic 0 basic 1 istotes "b";
+words basic 1 basic 0 istotes "c";
+words basic 1 basic 1 istotes "d";
+spill(words basic 0 basic 0);                  :) a
+spill(words basic 0 basic 1);                  :) b
+spill(words basic 1 basic 0);                  :) c
+spill(words basic 1 basic 1);                  :) d
+
+:) Test 4: 2D array with "thicc"
+int thicc matrix2 istotes OMG int basic 3 basic 3;
+matrix2 basic 0 basic 0 istotes 0;
+matrix2 basic 0 basic 1 istotes 1;
+matrix2 basic 0 basic 2 istotes 2;
+matrix2 basic 1 basic 0 istotes 3;
+matrix2 basic 1 basic 1 istotes 4;
+matrix2 basic 1 basic 2 istotes 5;
+matrix2 basic 2 basic 0 istotes 6;
+matrix2 basic 2 basic 1 istotes 7;
+matrix2 basic 2 basic 2 istotes 8;
+spill(matrix2 basic 0 basic 0);                :) 0
+spill(matrix2 basic 0 basic 1);                :) 1
+spill(matrix2 basic 0 basic 2);                :) 2
+spill(matrix2 basic 1 basic 0);                :) 3
+spill(matrix2 basic 1 basic 1);                :) 4
+spill(matrix2 basic 1 basic 2);                :) 5
+spill(matrix2 basic 2 basic 0);                :) 6
+spill(matrix2 basic 2 basic 1);                :) 7
+spill(matrix2 basic 2 basic 2);                :) 8
+
+:) Test 5: 3D array with "full of full of full of"
+int full of full of full of cube istotes OMG int basic 2 basic 2 basic 2;
+cube basic 0 basic 0 basic 0 istotes 0;
+cube basic 0 basic 0 basic 1 istotes 1;
+cube basic 0 basic 1 basic 0 istotes 2;
+cube basic 0 basic 1 basic 1 istotes 3;
+cube basic 1 basic 0 basic 0 istotes 4;
+cube basic 1 basic 0 basic 1 istotes 5;
+cube basic 1 basic 1 basic 0 istotes 6;
+cube basic 1 basic 1 basic 1 istotes 7;
+spill(cube basic 0 basic 0 basic 0);           :) 0
+spill(cube basic 0 basic 0 basic 1);           :) 1
+spill(cube basic 0 basic 1 basic 0);           :) 2
+spill(cube basic 0 basic 1 basic 1);           :) 3
+spill(cube basic 1 basic 0 basic 0);           :) 4
+spill(cube basic 1 basic 0 basic 1);           :) 5
+spill(cube basic 1 basic 1 basic 0);           :) 6
+spill(cube basic 1 basic 1 basic 1);           :) 7
+
+:) Test 6: 3D array with "thiccc"
+int thiccc cube2 istotes OMG int basic 2 basic 2 basic 2;
+cube2 basic 0 basic 0 basic 0 istotes 0;
+cube2 basic 0 basic 0 basic 1 istotes 1;
+cube2 basic 0 basic 1 basic 0 istotes 2;
+cube2 basic 0 basic 1 basic 1 istotes 3;
+cube2 basic 1 basic 0 basic 0 istotes 4;
+cube2 basic 1 basic 0 basic 1 istotes 5;
+cube2 basic 1 basic 1 basic 0 istotes 6;
+cube2 basic 1 basic 1 basic 1 istotes 7;
+spill(cube2 basic 0 basic 0 basic 0);          :) 0
+spill(cube2 basic 0 basic 0 basic 1);          :) 1
+spill(cube2 basic 0 basic 1 basic 0);          :) 2
+spill(cube2 basic 0 basic 1 basic 1);          :) 3
+spill(cube2 basic 1 basic 0 basic 0);          :) 4
+spill(cube2 basic 1 basic 0 basic 1);          :) 5
+spill(cube2 basic 1 basic 1 basic 0);          :) 6
+spill(cube2 basic 1 basic 1 basic 1);          :) 7
+
+:) Test 7: Edge case - 1xN array (1x5)
+int full of full of row istotes OMG int basic 1 basic 5;
+row basic 0 basic 0 istotes 0;
+row basic 0 basic 1 istotes 1;
+row basic 0 basic 2 istotes 2;
+row basic 0 basic 3 istotes 3;
+row basic 0 basic 4 istotes 4;
+spill(row basic 0 basic 0);                    :) 0
+spill(row basic 0 basic 1);                    :) 1
+spill(row basic 0 basic 2);                    :) 2
+spill(row basic 0 basic 3);                    :) 3
+spill(row basic 0 basic 4);                    :) 4
+
+:) Test 8: Edge case - Different sizes per dimension (2x3x4)
+int full of full of full of different istotes OMG int basic 2 basic 3 basic 4;
+int count istotes 0;
+fasho (int i istotes 0; i worse vibe 2; i istotes i + 1) {
+    fasho (int j istotes 0; j worse vibe 3; j istotes j + 1) {
+        fasho (int k istotes 0; k worse vibe 4; k istotes k + 1) {
+            different basic i basic j basic k istotes count;
+            count istotes count + 1;
+        }
+    }
+}
+spill(different basic 0 basic 0 basic 0);       :) 0
+spill(different basic 0 basic 0 basic 1);       :) 1
+spill(different basic 0 basic 0 basic 2);       :) 2
+spill(different basic 0 basic 0 basic 3);       :) 3
+spill(different basic 0 basic 1 basic 0);       :) 4
+spill(different basic 0 basic 1 basic 1);       :) 5
+spill(different basic 0 basic 1 basic 2);       :) 6
+spill(different basic 0 basic 1 basic 3);       :) 7
+spill(different basic 0 basic 2 basic 0);       :) 8
+spill(different basic 0 basic 2 basic 1);       :) 9
+spill(different basic 0 basic 2 basic 2);       :) 10
+spill(different basic 0 basic 2 basic 3);       :) 11
+spill(different basic 1 basic 0 basic 0);       :) 12
+spill(different basic 1 basic 0 basic 1);       :) 13
+spill(different basic 1 basic 0 basic 2);       :) 14
+spill(different basic 1 basic 0 basic 3);       :) 15
+spill(different basic 1 basic 1 basic 0);       :) 16
+spill(different basic 1 basic 1 basic 1);       :) 17
+spill(different basic 1 basic 1 basic 2);       :) 18
+spill(different basic 1 basic 1 basic 3);       :) 19
+spill(different basic 1 basic 2 basic 0);       :) 20
+spill(different basic 1 basic 2 basic 1);       :) 21
+spill(different basic 1 basic 2 basic 2);       :) 22
+spill(different basic 1 basic 2 basic 3);       :) 23
+
+:) Test 9: Variable dimensions - computed sizes
+int full of full of dynamic istotes OMG int basic (1+1) basic (2*2);
+dynamic basic 0 basic 0 istotes 0;
+dynamic basic 0 basic 1 istotes 1;
+dynamic basic 0 basic 2 istotes 2;
+dynamic basic 0 basic 3 istotes 3;
+dynamic basic 1 basic 0 istotes 4;
+dynamic basic 1 basic 1 istotes 5;
+dynamic basic 1 basic 2 istotes 6;
+dynamic basic 1 basic 3 istotes 7;
+spill(dynamic basic 0 basic 0);                :) 0
+spill(dynamic basic 0 basic 1);                :) 1
+spill(dynamic basic 0 basic 2);                :) 2
+spill(dynamic basic 0 basic 3);                :) 3
+spill(dynamic basic 1 basic 0);                :) 4
+spill(dynamic basic 1 basic 1);                :) 5
+spill(dynamic basic 1 basic 2);                :) 6
+spill(dynamic basic 1 basic 3);                :) 7
+

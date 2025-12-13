@@ -49,7 +49,7 @@ LT : 'worse vibe';
 NE : 'not the vibe';
 
 // Literals
-BOOLEAN : 'true' | 'false';
+BOOLEAN : 'literally' | '2 legit' | 'nah' | 'no way';
 INT : [0-9]+;
 DOUBLE
     : [0-9]+ '.' [0-9]*

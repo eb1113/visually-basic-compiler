@@ -81,13 +81,13 @@ Data makeData() {
 }
 
 Data data istotes makeData();
-boolean continue istotes true;
+boolean continue istotes literally;
 bet (continue) {
     double n istotes fetch("Enter a number (or -1 to stop): ");
     if (n better vibe 0)
         data XO add(n);
     whateva {
-        continue istotes false;
+        continue istotes no way;
     }
 }
 

@@ -24,12 +24,12 @@ Q>>
 
 :) (your program should print all the letters except for Xs)
 
-if (true) {
+if (literally) {
     spill("A");
 }
 spill("B");
 
-if (false) {
+if (nah) {
     spill("X0");
 }
 spill("C");
