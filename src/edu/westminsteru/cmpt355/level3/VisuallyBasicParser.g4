@@ -746,7 +746,16 @@ returns [AstExpression n]
         $n = new AstDouble(Double.parseDouble($DOUBLE.text));
     }
     | BOOLEAN {
-        $n = new AstBoolean(Boolean.parseBoolean($BOOLEAN.text));
+        boolean boolValue;
+        String text = $BOOLEAN.text;
+        if ("literally".equals(text) || "2 legit".equals(text)) {
+            boolValue = true;
+        } else if ("nah".equals(text) || "no way".equals(text)) {
+            boolValue = false;
+        } else {
+            throw new RuntimeException("Unknown boolean literal: " + text);
+        }
+        $n = new AstBoolean(boolValue);
     }
     | str=STRING_LITERAL {
         $n = new AstString($str.text);

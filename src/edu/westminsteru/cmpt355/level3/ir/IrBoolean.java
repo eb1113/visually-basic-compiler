@@ -2,7 +2,7 @@ package edu.westminsteru.cmpt355.level3.ir;
 
 import edu.westminsteru.cmpt355.level3.lang.BuiltInType;
 /**
- * Boolean literal: true or false
+ * Boolean literal: 'literally' or '2 legit' (true), 'nah' or 'no way' (false)
  * @param value The boolean value.
  */
 public record IrBoolean(boolean value) implements IrExpression {

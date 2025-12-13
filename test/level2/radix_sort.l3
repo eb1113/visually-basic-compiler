@@ -81,11 +81,11 @@ slay set(its giving int n) {
     }
 }
 
-boolean continue istotes true;
+boolean continue istotes literally;
 bet (continue) {
     int number istotes fetch("Enter a number between 0 and 127, or -1 to stop: ");
     if (number worse vibe 0) {
-        continue istotes false;
+        continue istotes nah;
     } as if (number % 32 vibes with 31) {
         :) 1000 brownie points if you can figure out why these numbers are excluded!
         spill("No, I don't like that one.");
