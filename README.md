@@ -1,106 +1,490 @@
-# Level 3 compiler: CMPT 355, Fall 2025
+# Visually Basic Compiler
 
-## Features supported at this level:
-- All level 0 features
-- All level 1 features
-- All level 2 features
-- Type constructors (programmer-defined types):
-  - Arrays (`int[]`, etc.)
-    - Multi-dimensional arrays (arrays of arrays) are **optional** (your code needs to support `int[]` but not necessarily `int[][]`)
-    - Arrays of records are possible, e.g. `Point[]`
-  - Records, e.g.
-    ```
-    record Point(double x, double y) {
-        double distance(Point other) {
-            return Math.sqrt((x - other.x) * (x - other.x) + (y - other.y) * (y - other.y));
-        }
-    }
-    ```
-- Features related to arrays:
+<div align="center">
+
+**A fully-functional compiler for the Visually Basic programming language**
+
+*Translating playful syntax into JVM bytecode - it's so fetch!*
+
+[![Java](https://img.shields.io/badge/Java-8%2B-orange)](https://www.oracle.com/java/)
+[![ANTLR](https://img.shields.io/badge/ANTLR-4.13.2-blue)](https://www.antlr.org/)
+[![License](https://img.shields.io/badge/License-Academic-lightgrey)]()
+
+</div>
+
+A complete compiler implementation that translates **Visually Basic** source code into Java Virtual Machine (JVM) bytecode. Inspired by Valley Girl culture, this language uses playful slang keywords (like `spill`, `istotes`, `OMG`, and `like`) to create a super duper cool programming experience. The compiler demonstrates advanced compiler design principles including lexical analysis, parsing, semantic analysis, and code generation using industry-standard tools like ANTLR and JASM.
+
+## 📋 Table of Contents
+
+- [Overview](#overview)
+- [Language Features](#language-features)
+- [Technologies Used](#technologies-used)
+- [Project Structure](#project-structure)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Compilation Pipeline](#compilation-pipeline)
+- [Example Programs](#example-programs)
+- [Testing](#testing)
+- [Architecture](#architecture)
+
+## 🎯 Overview
+
+Visually Basic is a totally rad programming language inspired by Valley Girl speak that compiles to JVM bytecode. Like, it's basically the most fun you'll have writing code! The compiler implements a complete compilation pipeline from source code to executable `.class` files, supporting:
+
+- **Primitive types**: `int`, `double`, `boolean`, `string`
+- **Control flow**: `if/else`, `while`, `for` loops (Java-style and Pascal-style)
+- **Functions**: User-defined functions with parameters and return values
+- **Arrays**: Single and multi-dimensional arrays with length support
+- **Records**: User-defined types with fields and methods
+- **Built-in methods**: String manipulation, mathematical operations, and system utilities
+
+The compiler is built using **ANTLR 4** for parsing and generates **JASM** (Java Assembly) code, which is then assembled into JVM bytecode. It's so fetch how it all comes together!
+
+## ✨ Language Features
+
+### Core Features
+
+- **Variables and Types**: Support for `int`, `double`, `boolean`, and `string` types
+- **Operators**: Arithmetic (`+`, `-`, `*`, `/`, `%`), relational (`==`, `!=`, `<`, `>`, `<=`, `>=`), logical (`and`, `or`, `not`)
+- **Type Conversions**: Automatic widening and explicit casting
+- **Input/Output**: `spill()` for printing and `input()` for reading user input
+- **Functions**: First-class function support with parameters and return values
+- **Control Structures**: 
+  - `if/else` statements
+  - `while` loops
+  - `for` loops (both Java-style and Pascal-style)
+- **Increment/Decrement**: Pre and post `++` and `--` operators
+
+### Advanced Features (Level 3)
+
+- **Arrays**: 
   - Array construction (`new int[100]`)
-    - Construction by specifying values (`new int[] { 1, 2, 3 }`) is **optional**
   - Array subscripting (`array[15]`)
-  - Array length built-in field (`array.length`)
-    - Note that syntactically this is just a field access; your semantic analyzer should notice that the `.length` of an array is being requested and act accordingly.
-    - Do *not* try to handle this in the parser (don't turn `length` into a special token type since it will then be illegal to name a variable `length`!).
-  - An improvement over Java: converting an array to a string should nicely format the array contents, for example `print(new int[3]);` should print `[0,0,0]`.
-  - `input()` does *not* need to work with arrays.
-- Features related to records:
-  - Record definition (`record Point(double x, double y) { /* methods */ }`)
-    - Between the `{ }`, record definitions can contain methods but not variables
-    - Records should be implemented as classes (`.class`) where the fields and methods are `public` (and non-static).
-    - Record definitions should automatically come with a constructor (having a parameter for each field) and a `toString()` method that nicely formats it (e.g. `Point[x=1.2,y=3.4]`).
+  - Array length field (`array.length`)
+  - Multi-dimensional arrays (arrays of arrays)
+  - Arrays of records
+  
+- **Records**:
+  - Record definitions with fields and methods
   - Record construction (`new Point(1.2, 3.4)`)
   - Field access (`point.x`)
   - Method calls (`point.distance(otherPoint)`)
-  - `this` expression (allowed only inside methods of records)
-  - Converting a record object to string or printing it should invoke its `toString()` method
-  - `input()` does *not* need to work with records.
-- Built-in fields and methods: similar to an array `.length`, the semantic analyzer will need to handle these specially (but do not try to handle these in the parser!):
-  - `.length()`, `.indexOf(string)`, `.substring(int, int)` methods for strings
-  - `Math.PI` and `Math.E` fields
-  - `Math.sqrt(double)`, `Math.pow(double, double)`, `Math.exp(double)`, `Math.log(double)`, `Math.sin(double)`, `Math.cos(double)`, `Math.tan(double)` methods
-    - Since we can now do square roots using `Math.sqrt()`, you can get rid of the top-level `sqrt()` function that we've had since level 0!
-  - `System.exit(int)` method
+  - `this` expression support
+  - Automatic constructor and `toString()` generation
 
-## Recommended implementation notes
+- **Built-in Methods**:
+  - String methods: `.length()`, `.indexOf(string)`, `.substring(int, int)`
+  - Math fields: `Math.PI`, `Math.E`
+  - Math methods: `Math.sqrt()`, `Math.pow()`, `Math.exp()`, `Math.log()`, `Math.sin()`, `Math.cos()`, `Math.tan()`
+  - System methods: `System.exit(int)`
 
-### Notes on records
-Methods (belong to a record) are different from the functions we have implemented so far in that they should be implemented as **non-**`static` JVM methods. This means that they are called using `invokevirtual` rather than `invokestatic`, and it also means that each one will have a hidden first parameter: the object the method is called on. (When you write `this` in Java code, you're just getting the value of local variable 0: `aload_0`.) So in a method `void f(int x, double y)`, `this` will be local 0, `x` will be local 1, and `y` will be local 2.
+### Language Syntax Examples
 
-In Java code, a constructor has the same name as the class and no return type, but in the JVM, a constructor is a method named `<init>` with return type `void`. The constructor **must** start by invoking its superclass constructor (`Object`'s default constructor) using `invokespecial`.
+```visually-basic
+// Variables and printing
+int x istotes 42;
+spill("Hello, world!");
+spill("x = ", x);
 
-### Notes on arrays
-Accesses to array elements are done with the `*aload/*astore` family of instructions (`iaload`/`iastore` for `int` arrays, etc.). Note that Boolean arrays use `baload`/`bastore` (Booleans are treated as `int`s on the stack but not within arrays). The stack will need to contain the array and the index (and for a store, the value to place in the array).
+// Functions
+int add(its giving int a, its giving int b) {
+    period a + b;
+}
 
-To implement the pretty-printing of arrays (`[1,2,3]`), it is recommended that you bake static methods for printing `int`, `double`, `boolean`, and `Object` arrays into the generated jasm code and call them appropriately.
+// Control flow
+if (x vibes with 42) {
+    spill("Perfect!");
+} whateva {
+    spill("Not quite");
+}
 
-In jasm, arrays are created using either `newarray` (if the elements are primitives, e.g. `newarray int`) or `anewarray` (if the elements are objects, e.g. `anewarray Ljava/lang/String;`).
+// Arrays
+int full of arr istotes OMG int basic 10;
+arr basic 0 istotes 100;
+spill(arr.length);
 
-### Types
-Since level 3 adds type constructors, the way you model types in the language will need more nuance; a simple `enum` of the four predefined types will no longer suffice (although you may find it helpful to define an `enum BuiltinType` to cover the predefined types). Your life will be easier if you use a `sealed interface`/`record`/`enum` hierarchy to represent the types, as we have done for AST and IR nodes, as the compiler can then better help you cover all cases.
+// String concatenation
+string msg istotes "Hello" um " " um "world";
 
-You are **not** required to support arrays of arrays; for the most part, they would not be difficult to implement, but creation of nested arrays is somewhat complex in terms of both syntax (`new int[10][10][][]` is allowed but not `new int[10][][10][]`) and implementation (the `multianewarray` instruction).
+// Records
+phat Point(double x, double y) {
+    double distance(Point other) {
+        period Math.sqrt((x - other XO x) * (x - other XO x) + (y - other XO y) * (y - other XO y));
+    }
+}
 
-### Lvalues
-An *lvalue* is something that can appear on the left-hand side of an assignment — it is the analog of an expression (also known as an *rvalue*) as it is something that can *accept* a value, rather than *produce* one. Until level 3 the only lvalues were simple variables, but now there are two more kinds:
-  - array subscripts, e.g. `a[i]`;
-  - record fields, e.g. `point.x`.
-Keep in mind that in both cases, the array or record object could itself come from a complex expression, so all of the following are also syntactically valid:
-  - `f()[99] = 1;`
-  - `new Buffer(100)[0] = 1;`
-  - `a.b.c.d[e().f[19]].g = 1;`
-  - `a[i++]--;`
-
-In the reference syntax for our level 3 language, all lvalues are also rvalues (expressions), so you could have `AstLvalue`/`IrLvalue` sealed interfaces descending directly from `AstExpression`/`IrExpression`. Keep in mind that assigning to general lvalues is more complex to implement in the JVM than simple variables (array subscripts need the array and index on the stack, while record fields need the record) and you will have to refactor your code generation for these. And don't forget that the `++` and `--` operators need to operate on all kinds of lvalues!
-
-### Lvalues and parsing
-Recall that Antlr does not permit mutual left recursion, e.g. rules of the form
+Point p istotes OMG Point(1.0, 2.0);
+spill(p XO x, ", ", p XO y);
 ```
-a : b ...
-b : a ...
+
+**Key Language Keywords**:
+- `spill()` - print function
+- `istotes` - assignment operator (=)
+- `OMG` - new keyword for object/array creation
+- `phat` - record type definition
+- `slay` - void return type
+- `period` - return statement
+- `its giving` - function parameter keyword
+- `vibes with` - equality operator (==)
+- `bad vibe` - less than or equal (<=)
+- `full of` - array type declaration
+- `basic` - array subscript operator
+- `XO` - field access operator (.)
+- `um` - string concatenation operator
+- `as if` - else if
+- `whateva` - else
+
+## 🛠 Technologies Used
+
+### ANTLR (ANother Tool for Language Recognition)
+
+[ANTLR](https://www.antlr.org/) is a powerful parser generator that reads grammar files and generates lexers and parsers. It's like totes the best tool for this! In this project, ANTLR 4.13.2 is used to:
+
+- **Lexical Analysis**: Tokenize source code into meaningful units (keywords, identifiers, operators, literals)
+- **Syntax Analysis**: Parse tokens according to the language grammar defined in `.g4` files
+- **AST Generation**: Build Abstract Syntax Trees (ASTs) that represent the program structure
+
+ANTLR generates Java classes (`VisuallyBasicLexer` and `VisuallyBasicParser`) from grammar files (`VisuallyBasicLexer.g4` and `VisuallyBasicParser.g4`), which handle the first two phases of compilation.
+
+**Key Benefits**:
+- Declarative grammar specification
+- Automatic error recovery and reporting
+- Support for complex language constructs
+- Well-documented and widely-used in industry
+
+### JASM (Java Assembler)
+
+[JASM](https://github.com/westminsteru/jasm) is a Java bytecode assembler that converts human-readable assembly-like syntax into JVM bytecode. It's super duper cool! Thanks Kathy :) This compiler:
+
+- **Code Generation**: Emits JASM assembly code from the Intermediate Representation (IR)
+- **Bytecode Assembly**: Uses JASM to convert `.jasm` files into `.class` files
+- **JVM Execution**: Produces standard JVM bytecode that can run on any Java Virtual Machine
+
+JASM provides a more readable alternative to writing bytecode directly, making code generation more maintainable and debuggable.
+
+**Key Benefits**:
+- Human-readable bytecode representation
+- Direct mapping to JVM instructions
+- Supports all JVM features (classes, methods, fields, etc.)
+- Enables execution on standard JVM
+
+## 📁 Project Structure
+
 ```
-On your first attempt at adding lvalues to the grammar, you are likely to inadvertently introduce mutual left recursion, so think carefully about how to adjust your grammar appropriately. (If you are using IntelliJ IDEA's Antlr plugin, it should automatically show you instances of this.) You will likely need to add some redundancy to your grammar (e.g. defining the syntax for an array subscript in more than one parser rule) in order to overcome this. 
+visually-basic-compiler/
+├── src/
+│   └── edu/westminsteru/cmpt355/level3/
+│       ├── Main.java                    # Compiler entry point
+│       ├── VisuallyBasicLexer.g4        # ANTLR lexer grammar
+│       ├── VisuallyBasicParser.g4       # ANTLR parser grammar
+│       ├── SemanticAnalyzer.java        # Semantic analysis and IR generation
+│       ├── CodeGenerator.java           # JASM code generation
+│       ├── ast/                         # Abstract Syntax Tree nodes
+│       ├── ir/                          # Intermediate Representation nodes
+│       ├── lang/                        # Type system and symbol tables
+│       └── util/                        # Utility classes
+├── lib/
+│   ├── antlr-4.13.2-complete.jar        # ANTLR runtime and tool
+│   ├── jasm.jar                         # JASM assembler
+│   └── compiler-tester-0.3.jar          # Automated testing framework
+├── test/                                # Test programs organized by level
+│   ├── level0/                          # Basic features
+│   ├── level1/                          # Functions and types
+│   ├── level2/                          # Control flow
+│   └── level3/                          # Arrays and records
+├── test-compiled/                       # Compiled test outputs
+├── out/                                 # Build output directory
+└── README.md                            # This file
+```
 
-## Suggested plan of attack
-0. Copy your level1 code into this project to use as a starting point (make sure to rename the `level2` package to `level3`). (The code you are given in this starter project is essentially the same as in level 2.)
-1. Refactor your type system (see the notes above). What you do here will likely guide the way you adjust types in the parser.
-2. Update your grammar and AST nodes: you will need to refactor types, introduce lvalues (using them in assignments and increments), and add the needed syntax for arrays and records. Watch out for mutual left recursion!
-3. Continue on to semantic analysis and IR nodes.  I recommend adding a `RecordSymbolTable` to handle record-specific symbols (fields and methods). 
-3. Implement code generation and test!
+## 📦 Prerequisites
 
-## Hints and suggestions
-- This assignment is provided as an IntelliJ IDEA project. You are *not* required to use IntelliJ and are free to delete the IntelliJ stuff (`level3.iml`, the `.idea` directory) if you wish.
-- A `Main` class (`edu.westminsteru.cmpt355.level3.Main`) is already essentially written for you. You just need to fill in code in the `parse()` method to invoke your lexer and parser.
-  - If you wish, it's probably OK to replace the `Main` class with the one you have from level 2 as no new features are added to it at this level.
-- Essentially the same starting code is provided for you at this level as at level 2. (You will likely just replace all of it with your level 2 stuff anyway.)
+Before building and running the compiler, ensure you have:
 
-## Running the compiler tester
-The compiler-tester .jar has been updated in this level. You can use it to automate the process of testing your compiler.
-1. Make sure that all the following are in your `CLASSPATH`:
-  - `lib/antlr-4.13.2-complete.jar`,
-  - `lib/jasm.jar`
-  - `lib/compiler-tester-0.3.jar`
-  - the compiled (.class) files of your compiler (in IntelliJ IDEA, by default these would be in `out/production/level3`)
-2. If necessary, modify the `test-config` file so that it has the correct name of your compiler's main class.
-3. Run the `edu.westminsteru.cmpt355.compiler_tester.Main` class, naming one or more test files or directories. To run all tests, you can just name the `test` directory.
+- **Java Development Kit (JDK) 8 or higher**
+  - Download from [Oracle](https://www.oracle.com/java/technologies/downloads/) or [OpenJDK](https://openjdk.org/)
+  - Verify installation: `java -version` and `javac -version`
+
+- **ANTLR 4.13.2** (included in `lib/` directory)
+  - The JAR file is provided, but you can download from [ANTLR website](https://www.antlr.org/download.html) if needed
+
+- **JASM** (included in `lib/` directory)
+  - The JAR file is provided with the project
+
+## 🚀 Installation
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/lmorgenthaler/visually-basic-compiler.git
+   cd visually-basic-compiler
+   ```
+
+2. **Set up the classpath**:
+   The compiler requires the following JARs in the classpath:
+   - `lib/antlr-4.13.2-complete.jar`
+   - `lib/jasm.jar`
+   - `lib/compiler-tester-0.3.jar` (for testing)
+
+3. **Build the compiler**:
+   
+   **Using Command Line**:
+   ```bash
+   # Compile all Java source files
+   javac -cp "lib/antlr-4.13.2-complete.jar:lib/jasm.jar" \
+         -d out/production/level3 \
+         src/edu/westminsteru/cmpt355/level3/**/*.java
+   ```
+   
+   **Using IntelliJ IDEA**:
+   - Open the project in IntelliJ IDEA (the `.iml` file is already configured)
+   - The IDE will automatically detect ANTLR grammar files and generate lexer/parser classes
+   - Build the project using `Build > Build Project` or `Cmd+B` (Mac) / `Ctrl+B` (Windows/Linux)
+   - Compiled classes will be in `out/production/level3/`
+   
+   **Note**: ANTLR generates Java classes from `.g4` grammar files. These generated files are typically placed in a `gen/` directory (which is gitignored). Make sure your IDE or build process includes these generated files in the classpath.
+
+## 💻 Usage
+
+### Basic Compilation
+
+Ready to compile some totally awesome Visually Basic code? Here's how:
+
+```bash
+java -cp "out/production/level3:lib/antlr-4.13.2-complete.jar:lib/jasm.jar" \
+     edu.westminsteru.cmpt355.level3.Main \
+     test/level0/print.l3
+```
+
+This will:
+1. Parse the source file
+2. Perform semantic analysis
+3. Generate JASM code (saved to `test/out/print.jasm`)
+4. Assemble the bytecode (saved to `test/out/print.class`)
+
+And boom! You've got yourself some executable bytecode. So fetch!
+
+### Compiler Options
+
+The compiler supports several command-line options:
+
+```bash
+java -cp "out/production/level3:lib/antlr-4.13.2-complete.jar:lib/jasm.jar" \
+     edu.westminsteru.cmpt355.level3.Main [options] filename
+```
+
+**Options**:
+- `-h`, `-help`, `--help`: Display usage information
+- `-ast`: Save the generated Abstract Syntax Tree to a file (`.ast.txt`)
+- `-ir`: Save the generated Intermediate Representation to a file (`.ir.txt`)
+- `-d dir`: Specify output directory (default: `test/out`)
+- `-r`: Run the compiled program immediately after compilation
+
+### Running Compiled Programs
+
+After compilation, execute the generated bytecode:
+
+```bash
+java -cp test/out Print
+```
+
+Or use the `-r` flag to compile and run in one step:
+
+```bash
+java -cp "out/production/level3:lib/antlr-4.13.2-complete.jar:lib/jasm.jar" \
+     edu.westminsteru.cmpt355.level3.Main -r test/level0/print.l3
+```
+
+### Example: Compile and Run FizzBuzz
+
+```bash
+# Compile
+java -cp "out/production/level3:lib/antlr-4.13.2-complete.jar:lib/jasm.jar" \
+     edu.westminsteru.cmpt355.level3.Main \
+     test/level2/fizzbuzz.l3
+
+# Run
+java -cp test/out Fizzbuzz
+```
+
+## 🔄 Compilation Pipeline
+
+The Visually Basic compiler follows a traditional multi-pass compilation approach:
+
+### 1. **Lexical Analysis** (Lexer)
+- **Tool**: ANTLR-generated `VisuallyBasicLexer`
+- **Input**: Source code (`.l3` files)
+- **Output**: Token stream
+- **Process**: Recognizes keywords (like `spill`, `istotes`, `OMG` - so cute!), identifiers, operators, literals, and whitespace
+
+### 2. **Syntax Analysis** (Parser)
+- **Tool**: ANTLR-generated `VisuallyBasicParser`
+- **Input**: Token stream
+- **Output**: Abstract Syntax Tree (AST)
+- **Process**: Validates syntax according to grammar rules and builds tree structure
+
+### 3. **Semantic Analysis**
+- **Component**: `SemanticAnalyzer`
+- **Input**: AST
+- **Output**: Intermediate Representation (IR) + Symbol Tables
+- **Process**:
+  - Type checking and type inference
+  - Symbol resolution (variables, functions, records)
+  - Scope analysis
+  - Lvalue/rvalue analysis
+  - Generates IR with explicit type information
+
+### 4. **Code Generation**
+- **Component**: `CodeGenerator`
+- **Input**: IR + Symbol Tables
+- **Output**: JASM assembly code (`.jasm` files)
+- **Process**:
+  - Traverses IR nodes
+  - Generates JVM instructions (load/store, arithmetic, control flow, method calls)
+  - Manages local variables and stack operations
+  - Handles array operations, record methods, and built-in functions
+
+### 5. **Assembly**
+- **Tool**: JASM assembler
+- **Input**: JASM code (`.jasm` files)
+- **Output**: JVM bytecode (`.class` files)
+- **Process**: Converts assembly syntax to binary bytecode
+
+### 6. **Execution**
+- **Runtime**: Java Virtual Machine
+- **Input**: Bytecode (`.class` files)
+- **Output**: Program execution results
+
+## 📚 Example Programs
+
+The `test/` directory contains numerous example programs demonstrating various language features. Check out these sweet examples:
+
+### Level 0: Basics
+- `print.l3`: Basic printing
+- `variables.l3`: Variable declarations and assignments
+- `operators.l3`: Arithmetic and logical operations
+- `input.l3`: User input handling
+
+### Level 1: Functions and Types
+- `functions.l3`: Function definitions and calls
+- `conversions.l3`: Type conversions
+- `strings.l3`: String operations
+
+### Level 2: Control Flow
+- `if.l3`, `ifelse.l3`, `nestedif.l3`: Conditional statements
+- `while.l3`: While loops
+- `for_java.l3`, `for_pascal.l3`: For loop variants
+- `fizzbuzz.l3`: Classic FizzBuzz implementation
+- `collatz.l3`: Collatz conjecture example
+
+### Level 3: Advanced Features
+- `arrays_basics.l3`, `arrays_full.l3`: Array operations
+- `records_basics.l3`, `records_full.l3`: Record definitions and usage
+- `arrays_of_records.l3`, `records_of_arrays.l3`: Complex type combinations
+- `builtin_methods.l3`: Built-in method demonstrations
+- `string_methods.l3`: String manipulation methods
+
+## 🧪 Testing
+
+The project includes an automated testing framework that's super duper helpful. To run all tests:
+
+```bash
+java -cp "out/production/level3:lib/antlr-4.13.2-complete.jar:lib/jasm.jar:lib/compiler-tester-0.3.jar" \
+     edu.westminsteru.cmpt355.compiler_tester.Main \
+     test
+```
+
+To test a specific directory or file:
+
+```bash
+# Test all level 3 features
+java -cp "out/production/level3:lib/antlr-4.13.2-complete.jar:lib/jasm.jar:lib/compiler-tester-0.3.jar" \
+     edu.westminsteru.cmpt355.compiler_tester.Main \
+     test/level3
+
+# Test a specific file
+java -cp "out/production/level3:lib/antlr-4.13.2-complete.jar:lib/jasm.jar:lib/compiler-tester-0.3.jar" \
+     edu.westminsteru.cmpt355.compiler_tester.Main \
+     test/level2/fizzbuzz.l3
+```
+
+The test framework:
+- Compiles each test file
+- Runs the compiled program
+- Compares output against expected results
+- Reports pass/fail status
+
+## 🏗 Architecture
+
+The compiler architecture is like, totally well-designed! Here's how it all works:
+
+### Type System
+
+The compiler uses a sophisticated type system implemented in the `lang/` package:
+
+- **`Type`**: Sealed interface representing all types
+- **`BuiltInType`**: Primitive types (`int`, `double`, `boolean`, `string`)
+- **`ArrayType`**: Array types (`int[]`, `double[][]`, etc.)
+- **`RecordType`**: User-defined record types with fields and methods
+- **`ScalarType`**: Base type for non-constructed types
+
+### Symbol Tables
+
+Three-level symbol table hierarchy:
+
+- **`GlobalSymbolTable`**: Global variables, functions, and record types
+- **`LocalSymbolTable`**: Local variables within functions
+- **`RecordSymbolTable`**: Fields and methods within records
+
+### AST and IR
+
+- **AST (Abstract Syntax Tree)**: Tree representation of source code structure
+  - Located in `ast/` package
+  - Closely mirrors grammar structure
+  - Contains minimal semantic information
+
+- **IR (Intermediate Representation)**: Lower-level representation with explicit type information
+  - Located in `ir/` package
+  - Includes type conversions, widening operations
+  - Optimized for code generation
+
+### Code Generation Strategy
+
+The code generator (`CodeGenerator.java`) uses a visitor-like pattern to traverse IR nodes:
+
+- **Expressions**: Generate stack-based operations
+- **Statements**: Generate control flow and side effects
+- **Functions**: Generate method definitions with proper signatures
+- **Records**: Generate class definitions with fields and methods
+- **Arrays**: Use JVM array instructions (`newarray`, `anewarray`, `*aload`, `*astore`)
+- **Built-ins**: Generate calls to Java standard library methods
+
+## 📝 Notes
+
+- The compiler generates standard JVM bytecode, so compiled programs can run on any JVM
+- Multi-dimensional arrays are supported (arrays of arrays)
+- Record types are compiled to Java classes with public fields and methods
+- The `this` keyword is supported within record methods
+- Automatic type widening is performed (e.g., `int` to `double`)
+- Array and record printing uses custom `toString()` implementations
+- ANTLR-generated lexer and parser classes are stored in the `gen/` directory (gitignored)
+- The project structure follows standard Java package conventions
+
+## 🎓 Educational Context
+
+This compiler was developed as part of a compilers course, implementing a complete compilation pipeline from source code to executable bytecode. It's like totes fetch! The project demonstrates:
+
+- **Lexical and Syntax Analysis**: Using ANTLR to define and parse a custom language grammar (with totally unique Valley Girl-inspired keywords)
+- **Semantic Analysis**: Type checking, symbol resolution, and scope management (making sure everything vibes correctly)
+- **Code Generation**: Translating high-level language constructs to JVM bytecode (super duper cool stuff!)
+- **Compiler Architecture**: Multi-pass compilation with AST and IR representations
+- **Language Design**: Implementing a complete programming language with modern features, all while keeping it fun and expressive
+
+The playful "girly" syntax makes the language memorable while maintaining the complexity and rigor of a real compiler implementation. Like, it's basically the best of both worlds!
+
+
+---
+
+**Built with ❤️ using ANTLR 4 and JASM**
+
+*Like, I'm obsessed! So chic, period* ✨

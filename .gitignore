@@ -1,29 +1,41 @@
-### IntelliJ IDEA ###
-out/
-!**/src/main/**/out/
-!**/src/test/**/out/
+# Compiled class files
+*.class
 
-### Eclipse ###
+# Generated files (ANTLR)
+gen/
+
+# Build output
+out/
+test-compiled/
+
+# IDE - IntelliJ IDEA
+.idea/
+*.iml
+
+# IDE - Eclipse
 .apt_generated
 .classpath
 .factorypath
 .project
-.settings
-.springBeans
-.sts4-cache
+.settings/
 bin/
-!**/src/main/**/bin/
-!**/src/test/**/bin/
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
+# IDE - NetBeans
+nbproject/private/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
 
-### VS Code ###
+# IDE - VS Code
 .vscode/
 
-### Mac OS ###
+# OS
 .DS_Store
+Thumbs.db
+
+# Dependencies (JAR files)
+# For now, keeping the JAR files in the project
+# JASM is needed to run and not easily accessible
+# (JASM assembler and compiler-testerbuilt by my professor)
+# lib/*.jar
