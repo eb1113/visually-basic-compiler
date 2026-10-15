@@ -137,7 +137,7 @@ spill(p XO x, ", ", p XO y);
 
 ## 🛠 Technologies Used
 
-### ANTLR (ANother Tool for Language Recognition)
+### ANTLR (Another Tool for Language Recognition)
 
 [ANTLR](https://www.antlr.org/) is a powerful parser generator that reads grammar files and generates lexers and parsers. It's like totes the best tool for this! In this project, ANTLR 4.13.2 is used to:
 
